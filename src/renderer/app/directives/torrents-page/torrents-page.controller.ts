@@ -183,7 +183,7 @@ export class TorrentsPageController {
 
         $rootScope.$on("show:draganddrop", (event: unknown, show: boolean) => {
             $scope.showDragAndDrop = show;
-            $scope.$apply();
+            $scope.$applyAsync();
         });
 
         $scope.$on("new:settings", (event: unknown, data: any) => {
@@ -309,7 +309,7 @@ export class TorrentsPageController {
             } else {
                 processUploadItem(item, !!askUploadOptions);
             }
-            $scope.$apply();
+            $scope.$applyAsync();
         });
 
         $scope.uploadTorrent = async (torrent: Uint8Array, filename: string, options?: TorrentUploadOptions, sourcePath?: string) => {
