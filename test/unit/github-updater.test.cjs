@@ -29,6 +29,7 @@ function fixture(packaged = true, macRelease) {
   const modules = {
     electron: { app: { isPackaged: packaged, getVersion: () => '2.17.1', getAppPath: () => '/mock-app' } },
     'electron-updater': { autoUpdater: updater },
+    path: macRelease ? require('node:path').posix : require('node:path'),
     '@shared/ipc': { IPC_CHANNELS: { updates: { status: 'status' }, notifications: { push: 'notify' } } },
     './electorrent': { getWindow: () => null },
     './logger': { error() {}, verbose() {} },
@@ -74,6 +75,22 @@ test('development builds skip network update checks', () => {
   f.api.checkForUpdates(true)
   assert.equal(f.checks(), 0)
   assert.equal(f.statuses.at(-1).type, 'error')
+})
+
+test('a recreated window receives the actionable update status and starts downloads', () => {
+  const f = fixture()
+  f.api.initialise(f.window)
+  f.window.isDestroyed = () => true
+  const statuses = []
+  const replacement = { ...f.window, isDestroyed: () => false,
+    webContents: { ...f.window.webContents, send: (_channel, status) => statuses.push(status) } }
+  f.api.setWindow(replacement)
+  f.updater.emit('update-available', { version: '2.20.0' })
+  assert.equal(statuses.at(-1).type, 'available')
+  assert.equal(statuses.at(-1).data.latestVersion, '2.20.0')
+  f.api.downloadUpdateAfterApproval()
+  assert.equal(statuses.at(-1).type, 'downloading')
+  assert.equal(f.autoDownloads(), 1)
 })
 
 test('explicit legacy test feed offers a download without invoking native updater', () => {

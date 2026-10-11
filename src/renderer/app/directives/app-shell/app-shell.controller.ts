@@ -310,6 +310,7 @@ export class AppShellController {
                 }
                 pageTorrents(true);
                 if (initialLaunchPayloadDelivered) {
+                    drainPendingLaunchPayloads();
                     return;
                 }
                 initialLaunchPayloadPromise ||= electorrent.launch.getPending();

@@ -335,12 +335,12 @@ export class TorrentsPageController {
         };
 
         $scope.openTorrentFiles = () => {
-            window.electorrent.torrents.openFiles(false).then((files) => {
+            window.electorrent.torrents.openFiles(true).then((files) => {
                 files.forEach((file) => {
                     $scope.$broadcast("torrents:add", {
                         ...file,
                         data: new Uint8Array(file.data),
-                    }, false);
+                    }, true);
                 });
                 $scope.$applyAsync();
             }).catch((err: unknown) => {

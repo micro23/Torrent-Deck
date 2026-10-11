@@ -71,8 +71,16 @@ export function createMenuActionHandler({
                 }
                 break;
             case "open-add-torrent":
-                electorrent.torrents.openFiles(!!action.askUploadOptions).then((files: Array<PendingTorrentUploadFile & { askUploadOptions?: boolean }>) => {
-                    files.forEach((item) => broadcastTorrentFile(item, !!item.askUploadOptions));
+                electorrent.torrents.openFiles(true).then((files: Array<PendingTorrentUploadFile & { askUploadOptions?: boolean }>) => {
+                    files.forEach((item) => broadcastTorrentFile(item, true));
+                }).catch((error: unknown) => {
+                    $rootScope.$emit("notification", {
+                        title: "Could not open torrent files",
+                        message: error instanceof Error ? error.message : String(error),
+                        type: "negative",
+                    });
+                }).finally(() => {
+                    $scope.$applyAsync();
                 });
                 break;
             case "paste-torrent-url":

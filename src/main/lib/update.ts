@@ -22,6 +22,10 @@ let pendingManualDownloadUrl: string | null = null
 let verbose = false
 let manualMacUpdates = false
 
+export function setWindow(window: BrowserWindow) {
+    mainWindow = window
+}
+
 export function checkForUpdates(notifyVerbose: boolean) {
     verbose = notifyVerbose === true
 
@@ -53,7 +57,7 @@ export function checkForUpdates(notifyVerbose: boolean) {
 }
 
 export function initialise(initWindow: BrowserWindow, customUpdateUrl?: string) {
-    mainWindow = initWindow
+    setWindow(initWindow)
     updateUrl = customUpdateUrl
     if (app.isPackaged && process.platform === 'darwin') {
         const metadata = JSON.parse(fs.readFileSync(path.join(app.getAppPath(), 'package.json'), 'utf8'))

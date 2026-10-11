@@ -9,6 +9,8 @@ function setup(platform, { packaged = true, previous, appImage } = {}) {
   const files = new Map(previous ? [['/profile/torrent-file-handler.json', JSON.stringify(previous)]] : [])
   const calls = []; const opened = []
   const modules = {
+    // These mocked platform fixtures use POSIX paths even on a Windows test host.
+    path: require('node:path').posix,
     electron: { app: { isPackaged: packaged, getVersion: () => '2.19.0', getPath: name => name === 'home' ? '/home/user' : '/profile' }, shell: { openExternal: async url => opened.push(url) } },
     fs: { existsSync: name => files.has(name) || name === '/installed/newer', promises: {
       readFile: async name => { if (!files.has(name)) throw Error('missing'); return files.get(name) },

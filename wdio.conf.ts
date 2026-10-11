@@ -61,6 +61,8 @@ function electronCapability(client: (typeof selectedClients)[number]): Webdriver
                 `--test-user-data-dir=${testUserData}`,
                 `--user-data-dir=${testUserData}`,
                 ...(client.appArgs ?? []),
+                ...(process.argv.includes('--force-title-bar-menu') ? ['--force-title-bar-menu'] : []),
+                ...(process.env.ELECTORRENT_TEST_UPDATE_URL ? ['-d', `--update-url=${process.env.ELECTORRENT_TEST_UPDATE_URL}`] : []),
                 ...(useHeadless ? ['--headless'] : []),
             ],
         },

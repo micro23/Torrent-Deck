@@ -611,3 +611,19 @@ html[data-theme="forest"] body #page-torrents .forest-stat-icon { width:30px !im
 html[data-theme="forest"] body #page-torrents .deck-progress-track { position:relative; height:20px; }
 html[data-theme="forest"] body #page-torrents .deck-progress-track > .bar { opacity:0 !important; }
 html[data-theme="forest"] body #page-torrents .forest-progress { position:absolute; inset:0; width:100%; height:100%; }
+
+/* Let the saved column width, rather than the filename, size the Name column. */
+html[data-theme] body #page-torrents #torrentTable th[data-col="decodedName"] {
+    min-width: 40px;
+}
+html[data-theme] body #page-torrents #torrentTable td[data-col="decodedName"] {
+    max-width: 0;
+}
+html[data-theme] body #page-torrents #torrentTable .terminal-name-cell {
+    min-width: 0;
+    overflow: hidden;
+}
+html[data-theme] body #page-torrents #torrentTable .torrent-name-content {
+    flex: 1 1 0;
+    min-width: 0;
+}
