@@ -11,7 +11,7 @@ const fixture = getTestFixture()
 describe("torrent file entry points", function () {
   configureSpec()
 
-  for (const input of ["file picker", "drag and drop"] as const) {
+  for (const input of ["file picker", "menu", "file launch", "drag and drop"] as const) {
     for (const prompt of [false, true]) {
       it(`${input} ${prompt ? "offers start options and adds paused" : "adds and starts a torrent"}`, async function () {
         this.timeout(90_000)
@@ -38,18 +38,37 @@ describe("torrent file entry points", function () {
         await $("#page-torrents li[data-state='all']").click()
 
         try {
-          if (input === "file picker") {
+          if (input === "file picker" || input === "menu") {
             // Only replace the OS dialog response; click the real Add button and
             // exercise file reading, IPC, and the renderer's upload handler.
             const dialog = await browser.electron.mock("dialog", "showOpenDialog")
             try {
               await dialog.mockResolvedValue({ canceled: false, filePaths: [filename] })
-              await $("[data-role='add-torrent']").click()
-              if (prompt) await this.app.uploadTorrentModalVisible()
-              else await torrent.waitForExist({ timeout: 20_000 })
+              if (input === "menu") {
+                const fileMenu = $("//button[contains(@class, 'title-bar-menu-trigger') and normalize-space(.)='File']")
+                if (await fileMenu.isExisting()) {
+                  await fileMenu.click()
+                  await $("//button[contains(@class, 'title-bar-menu-item')]//*[normalize-space(.)='Add Torrent']/parent::button").click()
+                } else {
+                  await browser.electron.execute((electron) => {
+                    const menu = electron.Menu.getApplicationMenu()
+                    const item = menu?.getMenuItemById("file")?.submenu?.items.find(item => item.label === "Add Torrent")
+                    if (!item) throw new Error("Native Add Torrent menu item not found")
+                    item.click(item, electron.BrowserWindow.getFocusedWindow(), {} as Electron.KeyboardEvent)
+                  })
+                }
+              } else {
+                await $("[data-role='add-torrent']").click()
+              }
+              await this.app.uploadTorrentModalVisible()
             } finally {
               await dialog.mockRestore()
             }
+          } else if (input === "file launch") {
+            // Windows forwards double-clicked files to the existing instance.
+            await browser.electron.execute((electron, filename) => {
+              electron.app.emit("second-instance", {}, [process.execPath, filename], process.cwd(), {})
+            }, filename)
           } else {
             // Chromium supplies real disk-backed File objects, including the
             // native path that Electron's webUtils resolves through preload.
@@ -72,14 +91,14 @@ describe("torrent file entry points", function () {
             }
           }
 
-          if (prompt) {
+          if (prompt || input !== "drag and drop") {
             await this.app.uploadTorrentModalVisible()
             if (secondTorrent) {
               await eventually(() => this.app.uploadTorrentModalPendingCountLabel()).contains("2 torrents remaining")
               await this.app.uploadTorrentModalSubmit({ start: false, waitForClose: false })
               await eventually(() => this.app.uploadTorrentModalPendingCountLabel()).contains("1 torrent remaining")
             }
-            await this.app.uploadTorrentModalSubmit({ start: false })
+            await this.app.uploadTorrentModalSubmit({ start: !prompt })
           }
           await torrent.waitForExist({ timeout: 20_000 })
           if (prompt) await torrent.waitForState(fixture.client.stopLabel, { timeout: 20_000 })

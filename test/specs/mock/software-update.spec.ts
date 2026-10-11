@@ -9,12 +9,12 @@ import { buildUpdateUrl } from "../../../src/main/lib/update-url"
 
 const assert: Chai.AssertStatic = chai.assert
 const updatePort = 43871
-const updateFilename = "electorrent-test-update.dmg"
+const updateFilename = "electorrent-test-update.zip"
 const updateContents = Buffer.from("Electorrent test update")
 let updatePath: string | undefined
 
 describe("software updates", function () {
-  configureSpec()
+  configureSpec({ login: false })
 
   const server = http.createServer((request, response) => {
     if (request.url === "/update") {
@@ -80,7 +80,7 @@ describe("software updates", function () {
     assert.isDefined(updatePath)
     assert.isFalse(fs.existsSync(updatePath!), "checking must not start a download")
     await modal.$("button.approve").click()
-    await browser.waitUntil(async () => (await modal.$("button.approve").getText()).includes("Open Downloaded Installer"))
+    await browser.waitUntil(async () => (await modal.$("button.approve").getText()).includes("Open Downloaded ZIP"))
     assert.deepEqual(fs.readFileSync(updatePath!), updateContents)
 
     await modal.$("button.deny").click()

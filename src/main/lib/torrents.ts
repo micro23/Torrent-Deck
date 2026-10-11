@@ -127,7 +127,19 @@ export async function readFiles(filepaths: string[], askUploadOptions: boolean) 
         return []
     }
 
-    return Promise.all(torrents.map((file) => serializeTorrentFile(file, askUploadOptions)))
+    const files = await Promise.all(torrents.map(async (file) => {
+        try {
+            return await serializeTorrentFile(file, askUploadOptions)
+        } catch (error) {
+            notify({
+                title: 'Could not open torrent file',
+                message: `${path.basename(file)}: ${error instanceof Error ? error.message : String(error)}`,
+                type: 'negative',
+            })
+            return null
+        }
+    }))
+    return files.filter((file): file is PendingTorrentUploadFile => file !== null)
 }
 
 export async function browse(askUploadOptions: boolean) {

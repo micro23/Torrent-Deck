@@ -269,6 +269,7 @@ async function bootstrap() {
         }
         rendererLoaded = false
         electorrent.setWindow(torrentWindow)
+        updater.setWindow(torrentWindow)
         menu.setWindow(torrentWindow)
 
         torrentWindow.once('ready-to-show', () => {
@@ -446,7 +447,7 @@ async function bootstrap() {
         return {
             magnets: pendingLaunchPayload.magnets.splice(0),
             torrentFiles: [
-                ...(await torrents.readFiles(pendingLaunchPayload.torrentFilePaths.splice(0), false)),
+                ...(await torrents.readFiles(pendingLaunchPayload.torrentFilePaths.splice(0), true)),
                 ...torrentFileWatcher.consumePendingPromptedTorrentFiles(),
             ],
         }
