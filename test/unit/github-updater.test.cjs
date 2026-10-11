@@ -29,6 +29,7 @@ function fixture(packaged = true, macRelease) {
   const modules = {
     electron: { app: { isPackaged: packaged, getVersion: () => '2.17.1', getAppPath: () => '/mock-app' } },
     'electron-updater': { autoUpdater: updater },
+    path: macRelease ? require('node:path').posix : require('node:path'),
     '@shared/ipc': { IPC_CHANNELS: { updates: { status: 'status' }, notifications: { push: 'notify' } } },
     './electorrent': { getWindow: () => null },
     './logger': { error() {}, verbose() {} },
