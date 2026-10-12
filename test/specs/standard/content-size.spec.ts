@@ -88,7 +88,10 @@ describe("main content size", function () {
 
   for (const theme of DECK_THEME_ORDER) {
     it(`applies content sizing to the ${DECK_THEME_TITLES[theme]} theme`, async function () {
-      await this.app.openSettings()
+      // The sidebar stays unscaled, so WebDriver can click it reliably even
+      // where its reported coordinates for zoomed toolbar buttons differ.
+      await $(".terminal-preferences").click()
+      await this.app.settingsPageIsVisible()
       await this.app.settingsGotoTab("general")
       const choice = $(`button[aria-label='Choose ${DECK_THEME_TITLES[theme]} theme']`)
       await choice.scrollIntoView({ block: "center", inline: "nearest" })
