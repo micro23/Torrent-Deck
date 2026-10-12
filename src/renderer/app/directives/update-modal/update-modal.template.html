@@ -21,6 +21,7 @@
         <p ng-if="data.status === 'available'">A new version is available. Download it when you’re ready.</p>
         <p ng-if="data.status === 'downloading'"><i class="spinner loading icon"></i> Downloading the update…</p>
         <p ng-if="data.status === 'error'">{{data.message}}</p>
+        <p ng-if="!data.manual && data.status === 'downloaded'">The update is ready. Torrent-Deck will restart and install it automatically.</p>
         <p ng-if="data.manual && data.status === 'downloaded'">Open the ZIP, then move the extracted Torrent-Deck app into Applications to replace the installed app.</p>
         <h4 ng-if="data.releaseNotes" class="ui horizontal divider header" style="margin-top: 14px">
             <i class="tag icon"></i>
@@ -34,7 +35,7 @@
             Close
         </button>
         <button ng-if="data.status === 'available' || data.status === 'downloaded'" type="button" class="ui primary right labeled icon approve button">
-            {{data.status === 'available' ? 'Download Update' : (data.manual ? 'Open Downloaded ZIP' : 'Quit And Install')}}
+            {{data.status === 'available' ? 'Download Update' : (data.manual ? 'Open Downloaded ZIP' : 'Restart And Update')}}
             <i class="arrow alternate circle up icon"></i>
         </button>
     </div>

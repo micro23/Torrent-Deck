@@ -10,10 +10,10 @@ const yaml = require('js-yaml')
 function fixture(packaged = true, macRelease) {
   const updater = new EventEmitter()
   let checks = 0
-  let installs = 0
+  const installs = []
   let autoDownloads = 0
   updater.checkForUpdates = async () => { checks++ }
-  updater.quitAndInstall = () => { installs++ }
+  updater.quitAndInstall = (...args) => { installs.push(args) }
   updater.downloadUpdate = async () => { autoDownloads++ }
   const statuses = []
   const downloads = []
@@ -66,7 +66,7 @@ test('packaged updater offers stable releases before downloading and sends insta
   assert.equal(status.data.releaseName, '2.18.0')
   assert.equal(status.data.updateUrl, 'https://github.com/micro23/Torrent-Deck/releases')
   f.api.quitAndInstall()
-  assert.equal(f.installs(), 1)
+  assert.deepEqual(f.installs(), [[true, true]], 'install silently and relaunch without a manual installer wizard')
 })
 
 test('development builds skip network update checks', () => {

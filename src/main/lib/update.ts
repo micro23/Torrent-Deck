@@ -96,7 +96,8 @@ export function manualQuitAndUpdate() {
 }
 
 export function quitAndInstall() {
-    autoUpdater.quitAndInstall()
+    // NSIS installs silently and relaunches the app, without an installer wizard.
+    autoUpdater.quitAndInstall(true, true)
 }
 
 export function downloadUpdateAfterApproval() {
