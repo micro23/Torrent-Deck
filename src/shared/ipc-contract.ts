@@ -365,6 +365,7 @@ export interface AppSettings<TServer = StoredServerConfig> {
         resizeMode: string
         notifications: boolean
         displaySize: string
+        contentScale?: number
         displayCompact: boolean
         cleanNames: boolean
         fixedHeader: boolean
@@ -423,6 +424,7 @@ export interface CertificateInstallResult {
 }
 
 export type MenuAction =
+    | { type: "content-scale"; change: "increase" | "decrease" | "reset" }
     | { type: "show-settings" }
     | { type: "show-servers" }
     | { type: "search-torrent" }

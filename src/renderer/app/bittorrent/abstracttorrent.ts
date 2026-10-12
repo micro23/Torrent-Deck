@@ -307,8 +307,8 @@ export abstract class Torrent implements TorrentProps {
     })
 
     static COL_UPLOAD_TOTAL = new Column({
-      name: 'Upload total',
-      enabled: false,
+      name: 'Uploaded',
+      enabled: true,
       template: '{{torrent.uploaded | bytes}}',
       attribute: 'uploaded'
     })
@@ -394,7 +394,7 @@ export abstract class Torrent implements TorrentProps {
     })
 
     static COL_SEEDING_TIME = new Column({
-      name: 'Seeding time',
+      name: 'Seed Time',
       enabled: true,
       template: '{{torrent.seedingTime | eta}}',
       attribute: 'seedingTime',

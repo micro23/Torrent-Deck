@@ -221,7 +221,7 @@ export class QBittorrentClient extends TorrentClient<QBittorrentTorrent> {
           this.createTorrentDetailsField("eta", "ETA", this.toEpochSeconds(info.eta), "eta"),
           this.createTorrentDetailsField("reannounce", "Reannounce In", this.toEpochSeconds(info.reannounce), "eta"),
           this.createTorrentDetailsField("active-time", "Active Time", this.toNumber(info.timeElapsed) ?? this.toNumber(torrent.timeActive), "eta"),
-          this.createTorrentDetailsField("seeding-time", "Seeding Time", this.toNumber(info.seedingTime) ?? this.toNumber(torrent.seedingTime), "eta"),
+          this.createTorrentDetailsField("seeding-time", "Seed Time", this.toNumber(info.seedingTime) ?? this.toNumber(torrent.seedingTime), "eta"),
           this.createTorrentDetailsField("max-ratio", "Maximum Ratio", this.toNumber(info.maxRatio), "ratio"),
           this.createTorrentDetailsField("max-seeding-time", "Maximum Seeding Time", this.toNumber(info.maxSeedingTime), "eta"),
         ]),

@@ -232,7 +232,7 @@ export class QBittorrentTorrent extends Torrent {
     })
 
     static COL_SEEDING_TIME = new Column({
-        name: 'Seeding Time',
+        name: 'Seed Time',
         template: '{{torrent.seedingTime | eta}}',
         attribute: 'seedingTime',
     })

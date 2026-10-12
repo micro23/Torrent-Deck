@@ -11,14 +11,13 @@ const { assert } = chai
 const fixture = getTestFixture()
 const client = fixture.client
 const tracker = fixture.tracker
-const defaultColumnWidth = 250
 
 const builtInColumns = [
   "Torrent",
   "Size",
   "↓ Download",
   "↑ Upload",
-  "Upload total",
+  "Uploaded",
   "Progress",
   "Label",
   "Date Added",
@@ -87,7 +86,7 @@ describe("torrent columns", function () {
     assertSpeed((await torrent.getColumn("uploadSpeed")).trim())
   })
 
-  it("shows a sensible Upload total column value", async function () {
+  it("shows a sensible Uploaded column value", async function () {
     assert.match((await torrent.getColumn("uploaded")).trim(), /^\d+(?:\.\d+)? [KMGT]?B$/)
   })
 
@@ -181,6 +180,7 @@ describe("torrent columns", function () {
 
   it("gives newly enabled columns the default width", async function () {
     this.timeout(60 * 1000)
+    const defaultRatioWidth = (await $("#torrentTable th[data-col='ratio']").getSize()).width
 
     await this.app.openSettings()
     await this.app.settingsGotoTab("layout")
@@ -201,6 +201,6 @@ describe("torrent columns", function () {
 
     const ratioHeader = $("#torrentTable thead").$("th=Ratio")
     await ratioHeader.waitForDisplayed({ timeout: 10 * 1000 })
-    assert.closeTo((await ratioHeader.getSize()).width, defaultColumnWidth, 1)
+    assert.closeTo((await ratioHeader.getSize()).width, defaultRatioWidth, 1)
   })
 })

@@ -175,7 +175,7 @@ export class TransmissionClient extends TorrentClient<TransmissionTorrent> {
           this.createTorrentDetailsField("eta-idle", "Seeding ETA", this.toEpochSeconds(info.etaIdle), "eta"),
           this.createTorrentDetailsField("active-time", "Active Time", this.toNumber(info.timeElapsed), "eta"),
           this.createTorrentDetailsField("downloading-time", "Downloading Time", this.toNumber(info.secondsDownloading), "eta"),
-          this.createTorrentDetailsField("seeding-time", "Seeding Time", this.toNumber(info.secondsSeeding), "eta"),
+          this.createTorrentDetailsField("seeding-time", "Seed Time", this.toNumber(info.secondsSeeding), "eta"),
           this.createTorrentDetailsField("remaining", "Remaining", this.toNumber(info.leftUntilDone), "bytes"),
           this.createTorrentDetailsField("available-to-download", "Available To Download", this.toNumber(info.desiredAvailable), "bytes"),
           this.createTorrentDetailsField("valid-data", "Verified Data", this.toNumber(info.haveValid), "bytes"),

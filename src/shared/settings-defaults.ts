@@ -1,4 +1,5 @@
 import type { AppSettings } from '@shared/ipc-contract'
+import { DEFAULT_CONTENT_SCALE, normalizeContentScale } from './content-scale'
 
 const DEFAULT_SETTINGS: AppSettings = {
     startup: 'default',
@@ -17,6 +18,7 @@ const DEFAULT_SETTINGS: AppSettings = {
         resizeMode: 'OverflowResizer',
         notifications: true,
         displaySize: 'normal',
+        contentScale: DEFAULT_CONTENT_SCALE,
         displayCompact: false,
         cleanNames: true,
         fixedHeader: false,
@@ -74,5 +76,7 @@ export function createDefaultSettings(): AppSettings {
 }
 
 export function normalizeSettings(value: unknown): AppSettings {
-    return mergeWithDefaults(DEFAULT_SETTINGS, value)
+    const settings = mergeWithDefaults(DEFAULT_SETTINGS, value)
+    settings.ui.contentScale = normalizeContentScale(settings.ui.contentScale)
+    return settings
 }

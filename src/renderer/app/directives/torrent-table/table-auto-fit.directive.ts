@@ -5,9 +5,17 @@ interface ResizeController {
         handleMiddleware(handle: JQuery, column: HTMLElement): HTMLElement | JQuery
         getMinWidth(column: HTMLElement): number
         onEndDrag(): void
-        intervene?: { selector(column: HTMLElement): JQuery }
+        calculate(originalWidth: number, delta: number): number
+        intervene?: {
+            selector(column: HTMLElement): JQuery
+            calculator?(originalWidth: number, delta: number): number
+        }
     }
     saveColumnSizes(): void
+}
+
+function tableScale(table: HTMLTableElement) {
+    return table.offsetWidth ? table.getBoundingClientRect().width / table.offsetWidth : 1
 }
 
 function contentWidth(table: HTMLTableElement, column: HTMLTableCellElement) {
@@ -36,7 +44,7 @@ function contentWidth(table: HTMLTableElement, column: HTMLTableCellElement) {
     try {
         const width = Math.max(...Array.from(probe.rows).map(row => row.cells[0].getBoundingClientRect().width), 0)
         const style = getComputedStyle(column)
-        return Math.ceil(width - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight)) + 8
+        return Math.ceil(width / tableScale(table) - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight)) + 8
     } finally {
         probe.remove()
     }
@@ -53,6 +61,19 @@ export class TableAutoFitDirective implements IDirective {
 
     link(scope: IScope, element: IAugmentedJQuery, _attrs: unknown, controller: ResizeController) {
         const table = element[0] as HTMLTableElement
+        const adjustedResizers = new WeakSet<object>()
+        const onMouseDown = (event: MouseEvent) => {
+            if (!(event.target instanceof Element) || !event.target.closest('.rz-handle')) return
+            const resizer = controller.resizer
+            if (!resizer || adjustedResizers.has(resizer)) return
+            const calculate = resizer.calculate.bind(resizer)
+            resizer.calculate = (width, delta) => calculate(width, delta / tableScale(table))
+            if (resizer.intervene?.calculator) {
+                const calculateAdjacent = resizer.intervene.calculator.bind(resizer.intervene)
+                resizer.intervene.calculator = (width, delta) => calculateAdjacent(width, delta / tableScale(table))
+            }
+            adjustedResizers.add(resizer)
+        }
         const onDoubleClick = (event: MouseEvent) => {
             const handle = event.target instanceof Element ? event.target.closest<HTMLElement>('.rz-handle') : null
             const header = handle?.closest('th') as HTMLTableCellElement | null
@@ -79,9 +100,11 @@ export class TableAutoFitDirective implements IDirective {
             if (event.target instanceof Element && event.target.closest('.rz-handle')) event.stopPropagation()
         }
         table.addEventListener('dblclick', onDoubleClick)
+        table.addEventListener('mousedown', onMouseDown, true)
         table.addEventListener('click', onClick, true)
         scope.$on('$destroy', () => {
             table.removeEventListener('dblclick', onDoubleClick)
+            table.removeEventListener('mousedown', onMouseDown, true)
             table.removeEventListener('click', onClick, true)
         })
     }

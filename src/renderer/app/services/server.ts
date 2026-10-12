@@ -348,6 +348,7 @@ export const serverService = ['$q', 'notificationService', '$bittorrent', '$btcl
             // Replace the untouched pre-Deck default layout once. Custom column
             // selections continue to use their saved names and order.
             const legacyDefaults = [
+                ["Torrent", "State", "Size", "Progress", "↓ Download", "↑ Upload", "ETA", "Ratio", "Seeds", "Peers", "Seeding time"],
                 ["Torrent", "State", "Progress", "Size", "Ratio", "↓ Download", "↑ Upload", "ETA", "Seeds", "Peers", "Seeding time"],
                 ["Name", "Size", "Down", "Up", "Progress", "Label", "Date Added", "Date Completed"],
                 ["Name", "Size", "Down", "Up", "Progress", "Peers", "Seeds", "ETA"],
@@ -366,7 +367,10 @@ export const serverService = ['$q', 'notificationService', '$bittorrent', '$btcl
                 "Download": "↓ Download",
                 "Up": "↑ Upload",
                 "Upload": "↑ Upload",
-                "Seeding Time": "Seeding time",
+                "Seeding Time": "Seed Time",
+                "Seeding time": "Seed Time",
+                "Upload total": "Uploaded",
+                "Upload Total": "Uploaded",
             }
             const savedColumns = data.map((name) => aliases[name] || name)
             columns.sort(zipsort(columns, savedColumns))

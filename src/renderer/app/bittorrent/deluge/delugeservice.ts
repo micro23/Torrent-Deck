@@ -118,7 +118,7 @@ export class DelugeClient extends TorrentClient<DelugeTorrent> {
                 this.createTorrentDetailsField("upload-limit", "Upload Limit", toSpeedLimitBytes(info.uploadLimit), "speedLimit", { allowEmpty: true }),
                 this.createTorrentDetailsField("eta", "ETA", this.toEpochSeconds(info.eta), "eta"),
                 this.createTorrentDetailsField("active-time", "Active Time", this.toNumber(info.timeElapsed), "number"),
-                this.createTorrentDetailsField("seeding-time", "Seeding Time", this.toNumber(info.seedingTime), "number"),
+                this.createTorrentDetailsField("seeding-time", "Seed Time", this.toNumber(info.seedingTime), "number"),
                 this.createTorrentDetailsField("finished-time", "Finished Time", this.toNumber(info.finishedTime), "number"),
                 this.createTorrentDetailsField("remaining", "Remaining", this.toNumber(info.totalRemaining), "bytes"),
                 this.createTorrentDetailsField("payload-downloaded", "Payload Downloaded", this.toNumber(info.payloadDownloaded), "bytes"),
