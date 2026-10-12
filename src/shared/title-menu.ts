@@ -143,6 +143,10 @@ export function deriveTitleMenu(state: TitleMenuState): TitleMenuItem[] {
         : [{ label: "No actions available", enabled: false }]
 
     const viewItems: TitleMenuItem[] = [
+        { label: "Increase Content Size (10%)", accelerator: "CmdOrCtrl+Plus", action: { type: "content-scale", change: "increase" } },
+        { label: "Decrease Content Size (10%)", accelerator: "CmdOrCtrl+-", action: { type: "content-scale", change: "decrease" } },
+        { label: "Reset Content Size (80%)", accelerator: "CmdOrCtrl+Alt+0", action: { type: "content-scale", change: "reset" } },
+        separator(),
         {
             label: "Reload",
             accelerator: "CmdOrCtrl+R",

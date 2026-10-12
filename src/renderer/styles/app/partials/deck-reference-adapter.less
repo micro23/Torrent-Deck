@@ -1,4 +1,25 @@
 /* Native Angular/Electron geometry. Artwork/materials come from Deck's source. */
+// Zoom the content within its existing layout, leaving the title bar and sidebar intact.
+#page-torrents .main-panel > * {
+    zoom: var(--deck-content-scale, .8);
+}
+
+// Screenshot-inspired widths. Inline widths from manual resizing take precedence.
+html[data-theme] body #page-torrents #torrentTable {
+    width:100% !important;
+    min-width:max(100%,1280px);
+    table-layout:fixed !important;
+    th { width:120px; }
+    th[data-col="decodedName"] { width:440px; }
+    th[data-col="statusMessage"] { width:75px; }
+    th[data-col="size"] { width:65px; }
+    th[data-col="percent"] { width:100px; }
+    th[data-col="downloadSpeed"], th[data-col="uploadSpeed"] { width:130px; }
+    th[data-col="eta"], th[data-col="ratio"] { width:60px; }
+    th[data-col="seedsConnected"], th[data-col="peersConnected"] { width:90px; }
+    th[data-col="seedingTime"], th[data-col="uploaded"] { width:115px; }
+}
+
 html[data-theme]:not([data-theme="terminal"]) {
     --deck-radius:var(--theme-radius,12px);
     --deck-control-radius:var(--theme-control-radius,8px);

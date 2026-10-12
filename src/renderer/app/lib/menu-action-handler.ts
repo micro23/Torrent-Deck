@@ -2,6 +2,7 @@ import { IScope } from "angular";
 import type { PendingTorrentUploadFile } from "@renderer/app/directives/add-torrent-modal/add-torrent-modal.directive";
 import type { ElectorrentRootScope } from "@renderer/app/types/root-scope";
 import type { MenuAction } from "@shared/ipc-contract";
+import { DEFAULT_CONTENT_SCALE, normalizeContentScale } from "@shared/content-scale";
 
 interface MenuActionHandlerOptions {
     $rootScope: ElectorrentRootScope;
@@ -41,6 +42,15 @@ export function createMenuActionHandler({
 
     return (action: MenuAction) => {
         switch (action.type) {
+            case "content-scale": {
+                const settings = settingsService.getAllSettings();
+                const current = normalizeContentScale(settings.ui.contentScale);
+                settings.ui.contentScale = action.change === "reset" ? DEFAULT_CONTENT_SCALE
+                    : normalizeContentScale(current + (action.change === "increase" ? 10 : -10));
+                $rootScope.$applyAsync();
+                void settingsService.saveAllSettings().catch((error: unknown) => console.error("Could not save content size", error));
+                break;
+            }
             case "show-settings":
                 $scope.$emit("show:settings");
                 break;
