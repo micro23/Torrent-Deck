@@ -86,9 +86,8 @@ describe("main content size", function () {
     }
   })
 
-  it("applies content sizing to every theme", async function () {
-    this.timeout(360_000)
-    for (const theme of DECK_THEME_ORDER) {
+  for (const theme of DECK_THEME_ORDER) {
+    it(`applies content sizing to the ${DECK_THEME_TITLES[theme]} theme`, async function () {
       await this.app.openSettings()
       await this.app.settingsGotoTab("general")
       const choice = $(`button[aria-label='Choose ${DECK_THEME_TITLES[theme]} theme']`)
@@ -108,6 +107,6 @@ describe("main content size", function () {
       assert.equal(await topMenuHeight(), menuHeight, theme)
       await chooseSize("Reset Content Size (80%)")
       await eventually(scale).equals(.8)
-    }
-  })
+    })
+  }
 })
