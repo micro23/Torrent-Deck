@@ -6,6 +6,7 @@ import { $, browser } from "@wdio/globals"
 import { waitForModalClose, waitForModalOpen } from "../../e2e/modal"
 import { configureSpec } from "../../framework/fixture"
 import { buildUpdateUrl } from "../../../src/main/lib/update-url"
+import { IPC_CHANNELS } from "../../../src/shared/ipc"
 
 const assert: Chai.AssertStatic = chai.assert
 const updatePort = 43871
@@ -83,6 +84,25 @@ describe("software updates", function () {
     await browser.waitUntil(async () => (await modal.$("button.approve").getText()).includes("Open Downloaded ZIP"))
     assert.deepEqual(fs.readFileSync(updatePath!), updateContents)
 
+    await modal.$("button.deny").click()
+    await waitForModalClose(modal)
+  })
+
+  it("offers an in-app restart for a downloaded native update", async function () {
+    // Exercise the renderer's real status subscription without installing a
+    // fake update or terminating the test app.
+    await browser.electron.execute((electron, channel) => {
+      const window = electron.BrowserWindow.getAllWindows().find(window => window.webContents.getURL().startsWith("file:"))
+      if (!window) throw new Error("Electron app window not found")
+      window.webContents.send(channel, {
+        type: "downloaded",
+        data: { manual: false, downloaded: true, installedVersion: "2.19.9", latestVersion: "99.0.0" },
+      })
+    }, IPC_CHANNELS.updates.status)
+    const modal = $("#updateModal")
+    await waitForModalOpen(modal)
+    assert.equal(await modal.$("button.approve").getText(), "Restart And Update")
+    assert.include(await modal.$(".content").getText(), "restart and install it automatically")
     await modal.$("button.deny").click()
     await waitForModalClose(modal)
   })

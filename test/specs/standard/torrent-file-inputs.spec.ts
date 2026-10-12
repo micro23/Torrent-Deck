@@ -99,6 +99,9 @@ describe("torrent file entry points", function () {
               await eventually(() => this.app.uploadTorrentModalPendingCountLabel()).contains("1 torrent remaining")
             }
             await this.app.uploadTorrentModalSubmit({ start: !prompt })
+            // Closing the add dialog must wait for the list sync, rather
+            // than relying on a later poll or a manual window reload.
+            if (!await torrent.isExisting()) throw new Error("Added torrent is missing after the upload dialog closed")
           }
           await torrent.waitForExist({ timeout: 20_000 })
           if (prompt) await torrent.waitForState(fixture.client.stopLabel, { timeout: 20_000 })

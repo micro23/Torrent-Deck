@@ -316,7 +316,7 @@ export class TorrentsPageController {
             try {
                 if (!$rootScope.$btclient) throw new Error("Connect to a torrent server before adding a torrent.");
                 await $rootScope.$btclient.uploadTorrent(torrent, filename, options, sourcePath);
-                void syncAfterTorrentMutation();
+                await syncAfterTorrentMutation();
             } catch (e) {
                 console.error(e);
                 throw e;
@@ -327,7 +327,7 @@ export class TorrentsPageController {
             try {
                 if (!$rootScope.$btclient) throw new Error("Connect to a torrent server before adding a torrent.");
                 await $rootScope.$btclient.addTorrentUrl(uri, options);
-                void syncAfterTorrentMutation();
+                await syncAfterTorrentMutation();
             } catch (err) {
                 console.error(err);
                 throw err;
@@ -430,7 +430,7 @@ export class TorrentsPageController {
         }
 
         function syncAfterTorrentMutation() {
-            return $scope.update().catch((err: unknown) => {
+            return $scope.update(true).catch((err: unknown) => {
                 console.error("Torrent sync error", err);
                 $notify.alert("Refresh failed", "The torrent list could not be refreshed");
             });
@@ -1075,7 +1075,11 @@ export class TorrentsPageController {
                 }
             }, slowThreshold);
 
-            return request.then((torrents: any) => {
+            // IPC returns native promises. Bring snapshot processing into Angular's
+            // digest so new rows render without a click, timer, or window reload.
+            return $q((resolve, reject) => {
+                request.then(resolve, reject);
+            }).then((torrents: any) => {
                 cancelSlowSyncRequestTimer();
                 trackSyncRequestLatency(startedAt, serverId);
                 if (serverId !== $rootScope.$server?.id) {
