@@ -90,8 +90,13 @@ describe("main content size", function () {
     it(`applies content sizing to the ${DECK_THEME_TITLES[theme]} theme`, async function () {
       // The sidebar stays unscaled, so WebDriver can click it reliably even
       // where its reported coordinates for zoomed toolbar buttons differ.
-      await $(".terminal-preferences").click()
-      await this.app.settingsPageIsVisible()
+      const settings = $("#page-settings")
+      if (!await settings.isDisplayed()) {
+        const preferences = $(".terminal-preferences")
+        await preferences.waitForClickable({ timeout: 20_000 })
+        await preferences.click()
+        await settings.waitForDisplayed({ timeout: 20_000 })
+      }
       await this.app.settingsGotoTab("general")
       const choice = $(`button[aria-label='Choose ${DECK_THEME_TITLES[theme]} theme']`)
       await choice.scrollIntoView({ block: "center", inline: "nearest" })
