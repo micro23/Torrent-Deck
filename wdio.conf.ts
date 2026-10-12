@@ -54,7 +54,9 @@ function electronCapability(client: (typeof selectedClients)[number]): Webdriver
         'wdio:specs': client.specs ?? standardSpecs,
         'electorrent:client': client,
         'wdio:electronServiceOptions': {
-            ...useDistribution ? {} : { appBinaryPath: electronBinary as unknown as string },
+            ...(process.env.ELECTORRENT_TEST_BINARY
+                ? { appBinaryPath: path.resolve(process.env.ELECTORRENT_TEST_BINARY) }
+                : useDistribution ? {} : { appBinaryPath: electronBinary as unknown as string }),
             appArgs: [
                 ...(useDistribution ? [] : [`--app=${process.env.ELECTORRENT_TEST_APP || path.resolve('.')}`]),
                 '--test',

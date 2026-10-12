@@ -28,7 +28,7 @@ export default class ElectorrentTestService {
       capabilities
         .map((capability) => capability["electorrent:client"])
         .filter((client): client is TestClient => Boolean(client))
-        .filter((client) => Boolean(client.fixture))
+        .filter((client) => Boolean(client.fixture) && process.env.ELECTORRENT_TEST_NO_BACKEND !== "1")
         .map((client) => [client.key, client]),
     )
 
@@ -57,7 +57,7 @@ export default class ElectorrentTestService {
 
   onWorkerStart(cid: string, capabilities: ElectorrentCapabilities) {
     const client = capabilities["electorrent:client"]
-    if (!client?.fixture) {
+    if (!client?.fixture || process.env.ELECTORRENT_TEST_NO_BACKEND === "1") {
       return
     }
 
@@ -99,7 +99,7 @@ export default class ElectorrentTestService {
       return
     }
 
-    if (!client.fixture) {
+    if (!client.fixture || process.env.ELECTORRENT_TEST_NO_BACKEND === "1") {
       initializeTestFixture({ client, proxyPort: client.port })
       return
     }
@@ -167,7 +167,7 @@ export default class ElectorrentTestService {
   }
 
   private getClientServiceName(client: TestClient) {
-    if (!client.fixture) {
+    if (!client.fixture || process.env.ELECTORRENT_TEST_NO_BACKEND === "1") {
       throw new Error(`Test client ${client.key} does not use a docker fixture`)
     }
     return path.basename(client.fixture)

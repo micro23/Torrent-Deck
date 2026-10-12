@@ -1953,7 +1953,7 @@ html[data-theme]:not([data-theme="terminal"])[data-theme="matrix"] ::selection {
   @keyframes matrix-arrive { from { opacity:0; transform:translateY(7px); } to { opacity:1; transform:none; } }
 }
 @media (prefers-reduced-motion:reduce) {
-  html[data-theme]:not([data-theme="terminal"])[data-theme="matrix"] *, html[data-theme]:not([data-theme="terminal"])[data-theme="matrix"] *::before, html[data-theme]:not([data-theme="terminal"])[data-theme="matrix"] *::after { animation:none!important; transition:none!important; }
+  html[data-theme]:not([data-theme="terminal"])[data-theme="matrix"] *, html[data-theme]:not([data-theme="terminal"])[data-theme="matrix"] *::before, html[data-theme]:not([data-theme="terminal"])[data-theme="matrix"] *::after { animation-duration:.01ms!important; animation-iteration-count:1!important; transition-duration:.01ms!important; }
 }
 html[data-theme]:not([data-theme="terminal"]) .theme-preview.matrix { position:relative; overflow:hidden; background:linear-gradient(90deg,#080d0bbd,transparent),url('../../assets/deck/matrix-atmosphere.webp') center/cover; border-color:#476c52!important; }
 html[data-theme]:not([data-theme="terminal"]) .theme-preview.matrix::before { content:"THE MATRIX"; position:absolute; top:27%; left:6%; color:#f4f8f5; font:400 16px Georgia,serif; letter-spacing:.21em; }
@@ -2150,7 +2150,7 @@ html[data-theme]:not([data-theme="terminal"])[data-theme="independence"] ::selec
   html[data-theme]:not([data-theme="terminal"])[data-theme="independence"] body .deck-overview .deck-stats-grid .deck-stat-card { height:76px!important; padding-top:9px!important; }
 }
 @media (prefers-reduced-motion:reduce) {
-  html[data-theme]:not([data-theme="terminal"])[data-theme="independence"] *, html[data-theme]:not([data-theme="terminal"])[data-theme="independence"] *::before, html[data-theme]:not([data-theme="terminal"])[data-theme="independence"] *::after { animation:none!important; transition:none!important; }
+  html[data-theme]:not([data-theme="terminal"])[data-theme="independence"] *, html[data-theme]:not([data-theme="terminal"])[data-theme="independence"] *::before, html[data-theme]:not([data-theme="terminal"])[data-theme="independence"] *::after { animation-duration:.01ms!important; animation-iteration-count:1!important; transition-duration:.01ms!important; }
 }
 html[data-theme]:not([data-theme="terminal"]) .theme-preview.independence { background:#f5eedf url('../../assets/deck/usa-monuments.webp') right center/cover!important; border-color:#bbaa8c!important; }
 html[data-theme]:not([data-theme="terminal"]) .theme-preview.independence::before { content:"USA"; position:absolute; left:8%; top:28%; color:#14283b; font:24px Georgia,serif; letter-spacing:.1em; }

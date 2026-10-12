@@ -53,6 +53,13 @@ export function configureSpec(options: { login?: boolean, clearTorrents?: boolea
     await browser.execute(() => window.localStorage.clear())
     await restartApplication(this)
 
+    if (process.env.ELECTORRENT_TEST_REDUCED_MOTION === "1") {
+      const puppeteer = await browser.getPuppeteer()
+      const page = (await puppeteer.pages()).find(page => page.url().startsWith("file:"))
+      if (!page) throw new Error("Electron renderer page not found")
+      await page.emulateMediaFeatures([{ name: "prefers-reduced-motion", value: "reduce" }])
+    }
+
     current.app = new App()
     this.app = current.app
     this.backend = current.backend

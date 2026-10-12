@@ -80,6 +80,7 @@ jobs:
       env:
         TEST_CLIENT: ${{ matrix.client }}
         TEST_SPEC: ${{ inputs.spec }}
+        ELECTORRENT_TEST_REDUCED_MOTION: "1"
       run: |
         args=(--client "$TEST_CLIENT" --headless)
         if [ -n "$TEST_SPEC" ]; then
@@ -129,6 +130,14 @@ jobs:
     - name: Build Windows installer and updater metadata
       if: runner.os == 'Windows'
       run: npm run dist -- --win nsis
+    - name: Verify Windows update dialog with system animations disabled
+      if: runner.os == 'Windows'
+      run: npm test -- --dist --client deluge:2 --spec test/specs/mock/software-update.spec.ts --headless
+      env:
+        ELECTORRENT_TEST_BINARY: dist/win-unpacked/torrent-deck.exe
+        ELECTORRENT_TEST_NO_BACKEND: "1"
+        ELECTORRENT_TEST_REDUCED_MOTION: "1"
+        ELECTORRENT_TEST_UPDATE_URL: http://127.0.0.1:43871/update
     - name: Build distribution
       if: runner.os == 'Linux'
       run: npm run dist
