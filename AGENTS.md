@@ -15,7 +15,7 @@ npm run lint
 ```
 
 ## Test
-Current user policy: run only Deluge client tests until the user explicitly requests other clients. Maintain shared Windows/macOS/Linux source, but compile release installers for macOS only. Do not modify the separate Deluge Deck reference project.
+Current user policy: run only Deluge client tests until the user explicitly requests other clients. Maintain shared Windows/macOS/Linux source and always compile and publish both macOS and Windows release installers to keep their versions current together. Do not modify the separate Deluge Deck reference project.
 
 Pick one of the following test strategies from context:
 * If user requested particular tests -> run requested targeted test

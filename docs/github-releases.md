@@ -8,6 +8,10 @@ Choose **Check for Updates** in Help or the Settings → General update card. Th
 
 ## Publish a release
 
+Current installer policy (2.19.13 onward): always build and publish both the
+Universal macOS ZIP and Windows NSIS installer with matching versions. Include
+the Windows blockmap and `latest.yml` so both platforms stay up to date together.
+
 1. Increase the version in `package.json`; synchronize `app/package.json` and `package-lock.json` too.
 2. Commit the finished code and push a matching tag, for example `v2.19.1` for version `2.19.1`.
 3. GitHub Actions runs Deluge tests and builds the Windows installer and update metadata. It also builds a Universal macOS ZIP. When the GitHub Actions secrets `MACOS_CSC_LINK` (base64 Developer ID Application `.p12`), `MACOS_CSC_KEY_PASSWORD`, `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, and `APPLE_TEAM_ID` are configured, the ZIP is signed and notarized, then checked with Gatekeeper and stapler. Without those credentials, it builds the ZIP unsigned; Gatekeeper may report that downloaded app as damaged.
