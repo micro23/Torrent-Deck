@@ -57,6 +57,15 @@ describe("native Deluge file workflow", function () {
   })
 
   before(async function () {
+    await browser.electron.execute(electron => {
+      const window = electron.BrowserWindow.getAllWindows().find(window => window.webContents.getURL().endsWith("/index.html"))
+      if (!window) throw new Error("Electron renderer window not found")
+      window.setBounds({ x: 0, y: 0, width: 1600, height: 900 })
+    })
+    const puppeteer = await browser.getPuppeteer()
+    const page = (await puppeteer.pages()).find(page => page.url().startsWith("file:") && page.url().endsWith("/index.html"))
+    if (!page) throw new Error("Electron renderer page not found")
+    await page.setViewport({ width: 1600, height: 900 })
     directory = fs.mkdtempSync(path.join(os.tmpdir(), "torrent-deck-native-"))
     await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve))
     const address = server.address()
@@ -113,7 +122,9 @@ describe("native Deluge file workflow", function () {
           const puppeteer = await browser.getPuppeteer()
           const page = (await puppeteer.pages()).find(page => page.url().startsWith("file:") && page.url().endsWith("/index.html"))
           if (!page) throw new Error("Electron renderer page not found")
-          const target = await page.$("#torrentTable")
+          // The table can extend horizontally beyond the viewport. Drop into
+          // its visible scroll container rather than the off-screen table center.
+          const target = await page.$("#page-torrents .main-content")
           const bounds = await target?.boundingBox()
           if (!bounds) throw new Error("Torrent table is not visible")
           const session = await page.createCDPSession()
