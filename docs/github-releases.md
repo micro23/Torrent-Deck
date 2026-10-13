@@ -8,12 +8,9 @@ Choose **Check for Updates** in Help or the Settings → General update card. Th
 
 ## Publish a release
 
-Current installer policy (2.19.13 onward): build only the Universal macOS ZIP.
-The workflow retains the preceding Windows installer, blockmap, and `latest.yml`
-on the new release so existing Windows update checks still work. Those assets
-keep their original version; they do not contain the new macOS release's fixes.
-Windows installer generation remains configured for a future explicitly requested
-Windows release, but is excluded from the current build matrix.
+Current installer policy (2.19.13 onward): always build and publish both the
+Universal macOS ZIP and Windows NSIS installer with matching versions. Include
+the Windows blockmap and `latest.yml` so both platforms stay up to date together.
 
 1. Increase the version in `package.json`; synchronize `app/package.json` and `package-lock.json` too.
 2. Commit the finished code and push a matching tag, for example `v2.19.1` for version `2.19.1`.

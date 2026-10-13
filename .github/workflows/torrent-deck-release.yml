@@ -96,8 +96,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Current project policy: publish macOS installers only.
-        os: [macos-latest]
+        os: [macos-latest, windows-latest]
 
     runs-on: ${{ matrix.os }}
 
@@ -230,13 +229,10 @@ jobs:
         GH_REPO: micro23/Torrent-Deck
         RELEASE_TAG: ${{ github.ref_name }}
       run: |
-        title="Torrent-Deck ${RELEASE_TAG#v} — macOS"
-        # Keep the existing Windows updater feed usable when only macOS ships.
-        # These remain the previous Windows version; no Windows installer is built.
-        if ! compgen -G 'release-assets/*.exe' > /dev/null; then
-          previous_tag=$(gh release view --json tagName --jq .tagName)
-          gh release download "$previous_tag" --dir release-assets --pattern '*.exe' --pattern '*.blockmap' --pattern 'latest.yml'
-        fi
+        title="Torrent-Deck ${RELEASE_TAG#v} — macOS and Windows"
+        test -n "$(find release-assets -maxdepth 1 -name '*.zip' -print -quit)"
+        test -n "$(find release-assets -maxdepth 1 -name '*.exe' -print -quit)"
+        test -f release-assets/latest.yml
         if gh release view "$RELEASE_TAG" --json isDraft > release.json 2>/dev/null; then
           node -e 'if (!require("./release.json").isDraft) throw new Error("Refusing to overwrite a published release")'
         else

@@ -6,7 +6,7 @@
 - Preserve unavailable disk-space values as unknown and retain tracker tier zero during edits.
 - Wait for tracker sorting to render in the integration test.
 - Validate all 24 Deluge suites (145 passing cases), 35 regression tests, and five native macOS file workflows.
-- Publish the universal macOS ZIP; Windows remains on 2.19.12 under the current macOS-only installer policy.
+- Publish the universal macOS ZIP and Windows installer together, with Windows updater metadata.
 
 ## 2.19.12 — Mac and Windows torrent workflow reliability
 
