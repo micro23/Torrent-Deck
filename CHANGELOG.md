@@ -1,5 +1,13 @@
 # Changes since the Electorrent fork
 
+## 2.19.13 — Deluge response and tracker reliability
+
+- Reject malformed Deluge replies and snapshots instead of reporting false success or clearing the torrent list.
+- Preserve unavailable disk-space values as unknown and retain tracker tier zero during edits.
+- Wait for tracker sorting to render in the integration test.
+- Validate all 24 Deluge suites (145 passing cases), 35 regression tests, and five native macOS file workflows.
+- Publish the universal macOS ZIP; Windows remains on 2.19.12 under the current macOS-only installer policy.
+
 ## 2.19.12 — Mac and Windows torrent workflow reliability
 
 - Preserve dropped torrent files before the browser clears its drag data, including Option on macOS and Ctrl on Windows to show upload options.
