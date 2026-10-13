@@ -3,6 +3,7 @@ import { $, $$, browser } from "@wdio/globals"
 import { eventually } from "../../e2e/eventually"
 import { configureSpec } from "../../framework/fixture"
 import { restartApplication } from "../../shared"
+import { visibleBounds } from "../../e2e/geometry"
 
 const assert: Chai.AssertStatic = chai.assert
 
@@ -26,10 +27,10 @@ describe("layout", function () {
     await this.app.torrentsPageIsVisible()
 
     await this.app.setTorrentSidebarCollapsed(false)
-    const toolbar = $(".deck-control-strip")
-    const search = $(".deck-toolbar-search input")
-    const toolbarCenter = (await toolbar.getLocation()).x + (await toolbar.getSize()).width / 2
-    const searchCenter = (await search.getLocation()).x + (await search.getSize()).width / 2
+    const toolbar = await visibleBounds(".deck-control-strip")
+    const search = await visibleBounds(".deck-toolbar-search input")
+    const toolbarCenter = toolbar.x + toolbar.width / 2
+    const searchCenter = search.x + search.width / 2
     assert.closeTo(searchCenter, toolbarCenter, 2, "search is centered in the toolbar")
     const sidebar = $("torrent-sidebar")
     const sidebarBottom = (await sidebar.getLocation()).y + (await sidebar.getSize()).height

@@ -6,6 +6,7 @@ import path from "node:path"
 import parseTorrent from "parse-torrent"
 import { $, browser } from "@wdio/globals"
 import { Torrent } from "../../e2e"
+import { waitForModalClose, waitForModalOpen } from "../../e2e/modal"
 import { configureSpec, getTestFixture } from "../../framework/fixture"
 
 const assert: Chai.AssertStatic = chai.assert
@@ -27,7 +28,8 @@ describe("native Deluge file workflow", function () {
         case "web.get_hosts": result = [["local", "127.0.0.1", 58846, "Connected"]]; break
         case "web.connect": result = ["core.add_torrent_magnet", "core.add_torrent_file"]; break
         case "web.get_host_status": result = ["local", "Connected", "2.2.0"]; break
-        case "core.get_enabled_plugins": result = []; break
+        case "core.get_enabled_plugins": result = ["Label"]; break
+        case "label.get_labels": result = []; break
         case "core.get_config_values": result = { download_location: directory }; break
         case "core.get_free_space": result = 1024 ** 4; break
         case "web.update_ui": result = { torrents, stats: {}, connected: true }; break
@@ -109,13 +111,24 @@ describe("native Deluge file workflow", function () {
           }, filename)
         } else {
           const puppeteer = await browser.getPuppeteer()
-          const page = (await puppeteer.pages()).find(page => page.url().startsWith("file:"))
+          const page = (await puppeteer.pages()).find(page => page.url().startsWith("file:") && page.url().endsWith("/index.html"))
           if (!page) throw new Error("Electron renderer page not found")
           const target = await page.$("#torrentTable")
           const bounds = await target?.boundingBox()
           if (!bounds) throw new Error("Torrent table is not visible")
           const session = await page.createCDPSession()
           try {
+            await page.evaluate(() => {
+              (window as any).__nativeDrop = undefined
+              document.addEventListener("drop", event => {
+                const drop = event as DragEvent
+                ;(window as any).__nativeDrop = {
+                  target: (event.target as Element).outerHTML.slice(0, 200),
+                  inDropZone: !!(event.target as Element).closest("[drag-and-drop]"),
+                  files: Array.from(drop.dataTransfer?.files || []).map(file => file.name),
+                }
+              }, { capture: true, once: true })
+            })
             for (const type of ["dragEnter", "dragOver", "drop"] as const) {
               await session.send("Input.dispatchDragEvent", {
                 type, x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2,
@@ -123,6 +136,11 @@ describe("native Deluge file workflow", function () {
                 data: { items: [], files: [filename], dragOperationsMask: 1 },
               })
             }
+            console.info("Native drop diagnostic", JSON.stringify(await page.evaluate(() => ({
+              drop: (window as any).__nativeDrop,
+              viewport: { width: innerWidth, height: innerHeight },
+              notifications: document.querySelector("#notifications")?.textContent,
+            }))))
           } finally {
             await session.detach()
           }
@@ -135,6 +153,14 @@ describe("native Deluge file workflow", function () {
         await torrent.waitForExist()
         await torrent.waitForState(paused ? "Paused" : "Downloading")
         assert.property(torrents, torrent.hash, "Deluge must receive the torrent")
+        if (input === "file picker") {
+          const dropdown = await torrent.openLabelsDropdown()
+          await dropdown.$("[data-role='new-label']").click()
+          const modal = $("#newLabelModal")
+          await waitForModalOpen(modal)
+          await modal.$("button.deny").click()
+          await waitForModalClose(modal)
+        }
         await torrent.delete()
         await torrent.waitForGone()
         assert.notProperty(torrents, torrent.hash, "Remove confirmation must reach Deluge")

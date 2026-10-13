@@ -15,6 +15,14 @@ const tracker = fixture.tracker
 describe("upload options", function () {
   configureSpec()
   requireFeature(({ features }) => Object.values(features.uploadOptions || {}).some((enabled) => enabled === true))
+  before(async function () {
+    if (client.features.labels === true) {
+      await this.app.openSettings()
+      await this.app.settingsGotoTab("layout")
+      await this.app.setLayoutColumnEnabled("Label", true)
+      await this.app.settingsSave()
+    }
+  })
   beforeEach(async function () {
     this.timeout(30 * 1000)
     this.torrentPath = await createTorrentFile(tracker, { fileSize: 1 })

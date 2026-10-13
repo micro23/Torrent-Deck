@@ -16,6 +16,10 @@ describe("torrent labels", function () {
   let unlabeledTorrent: e2e.Torrent
 
   before(async function () {
+    await this.app.openSettings()
+    await this.app.settingsGotoTab("layout")
+    await this.app.setLayoutColumnEnabled("Label", true)
+    await this.app.settingsSave()
     const filename = await createSlowTorrentFile(tracker)
     const unlabeledFilename = await createTorrentFile(tracker, { torrentName: createUniqueLabel("unlabeled") })
     torrent = await this.app.uploadTorrent({ filename })

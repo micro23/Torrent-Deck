@@ -4,6 +4,7 @@
 
 - Preserve dropped torrent files before the browser clears its drag data, including Option on macOS and Ctrl on Windows to show upload options.
 - Report unreadable dropped files and continue adding valid files from the same drop.
+- Keep toolbar dropdowns above the torrent table header across themes and content sizes; use visible coordinates in scaled layout and resizing tests.
 - Recover from malformed update responses and cancelled downloads; guard updater callbacks after the window closes and handle downloads without a known size.
 - Download macOS updates again rather than trusting an existing file based only on its size.
 - Check file picker, File menu, native file-opening events, drops, paused uploads, immediate list updates, and removal on macOS and the packaged Windows app in CI, using a local Deluge protocol fixture. Real Deluge integration tests continue separately.
