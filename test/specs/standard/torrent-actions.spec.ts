@@ -6,6 +6,7 @@ import { $, browser } from "@wdio/globals"
 import * as e2e from "../../e2e"
 import { eventually } from "../../e2e/eventually"
 import { waitForModalClose, waitForModalOpen } from "../../e2e/modal"
+import { visibleBounds } from "../../e2e/geometry"
 import { createTorrentFile } from "../../torrent"
 import { configureSpec, createUniqueLabel, getTestFixture } from "../../framework/fixture"
 
@@ -100,20 +101,16 @@ describe("torrent actions", function () {
     }
   })
 
-  it("opens the context menu at the mouse position", async function () {
-    const torrentRow = $(torrent.query).$("[data-col=decodedName] .torrent-name-content")
-    const rowLocation = await torrentRow.getLocation()
-    const rowSize = await torrentRow.getSize()
+  it("opens the context menu near the mouse and within the screen", async function () {
     const clickOffset = {
       x: 0,
       y: 0,
     }
-    const expectedMenuLocation = {
-      x: rowLocation.x + Math.floor(rowSize.width / 2) + clickOffset.x,
-      y: rowLocation.y + Math.floor(rowSize.height / 2) + clickOffset.y,
-    }
-
     const { parentWindow } = await torrent.openContextMenu({ button: "right", ...clickOffset })
+    // Opening the menu scrolls the row into view. Measure the final, scaled
+    // bounds rather than the row's position before WebDriver scrolls it.
+    const row = await visibleBounds(`${torrent.query} [data-col=decodedName] .torrent-name-content`)
+    const expectedMenuLocation = { x: row.x + row.width / 2, y: row.y + row.height / 2 }
     const tolerance = 2
     const getContextMenuLocation = async () => {
       const visibleMenu = await $("#contextmenu > .ui.menu").getLocation()
@@ -127,6 +124,7 @@ describe("torrent actions", function () {
           parent: parent.getContentBounds(),
           focusable: menu.isFocusable(),
           hasParent: menu.getParentWindow() === parent,
+          workArea: electron.screen.getDisplayNearestPoint(menu.getBounds()).workArea,
         }
       })
       return {
@@ -142,12 +140,18 @@ describe("torrent actions", function () {
       await browser.waitUntil(async () => {
         const location = await getContextMenuLocation()
         return Math.abs(location.visibleMenu.x - (location.parent.x + expectedMenuLocation.x)) <= tolerance
-          && Math.abs(location.visibleMenu.y - (location.parent.y + expectedMenuLocation.y)) <= tolerance
+          && location.visibleMenu.y <= location.parent.y + expectedMenuLocation.y + tolerance
+          && location.menu.y + location.menu.height >= location.parent.y + expectedMenuLocation.y - tolerance
       })
 
       const contextMenuLocation = await getContextMenuLocation()
       assert.closeTo(contextMenuLocation.visibleMenu.x, contextMenuLocation.parent.x + expectedMenuLocation.x, tolerance)
-      assert.closeTo(contextMenuLocation.visibleMenu.y, contextMenuLocation.parent.y + expectedMenuLocation.y, tolerance)
+      // A tall menu can be moved upwards to fit a small headless display.
+      const cursorY = contextMenuLocation.parent.y + expectedMenuLocation.y
+      assert.isAtMost(contextMenuLocation.visibleMenu.y, cursorY + tolerance)
+      assert.isAtLeast(contextMenuLocation.menu.y + contextMenuLocation.menu.height, cursorY - tolerance)
+      assert.isAtLeast(contextMenuLocation.menu.y, contextMenuLocation.workArea.y)
+      assert.isAtMost(contextMenuLocation.menu.y + contextMenuLocation.menu.height, contextMenuLocation.workArea.y + contextMenuLocation.workArea.height)
       assert.equal(contextMenuLocation.focusable, false)
       assert.equal(contextMenuLocation.hasParent, true)
     } finally {

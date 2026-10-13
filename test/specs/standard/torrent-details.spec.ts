@@ -2,6 +2,7 @@ import fs from "node:fs"
 import parseTorrent from "parse-torrent"
 import * as e2e from "../../e2e"
 import { eventually } from "../../e2e/eventually"
+import { dragVisibleElement } from "../../e2e/geometry"
 import { configureSpec, formatBytes, getTestFixture, requireFeature } from "../../framework/fixture"
 import { createTorrentFile } from "../../torrent"
 
@@ -189,7 +190,7 @@ describe("torrent details", function () {
     const handle = urlHeader.$(".rz-handle")
     await handle.waitForDisplayed({ timeout: 10_000 })
     const initialWidth = (await urlHeader.getSize()).width
-    await handle.dragAndDrop({ x: 40, y: 0 })
+    await dragVisibleElement("[data-role='torrent-details-trackers-table'] thead th:first-child .rz-handle", 40)
     await eventually(async () => (await urlHeader.getSize()).width)
       .satisfies(`change by at least 10 from ${initialWidth}`, (nextWidth) => Math.abs(nextWidth - initialWidth) >= 10)
 
@@ -225,7 +226,7 @@ describe("torrent details", function () {
     await handle.waitForDisplayed({ timeout: 10_000 })
 
     const initialWidth = (await actionsHeader.getSize()).width
-    await handle.dragAndDrop({ x: -40, y: 0 })
+    await dragVisibleElement("[data-role='torrent-details-trackers-table'] thead th.torrent-details-tracker-actions .rz-handle", -40)
     await eventually(async () => (await actionsHeader.getSize()).width)
       .satisfies(`change by at least 10 from ${initialWidth}`, (nextWidth) => Math.abs(nextWidth - initialWidth) >= 10)
 
@@ -283,7 +284,7 @@ describe("torrent details", function () {
     await handle.waitForDisplayed({ timeout: 10_000 })
 
     const initialWidth = (await controlledHeader.getSize()).width
-    await handle.dragAndDrop({ x: 40, y: 0 })
+    await dragVisibleElement("[data-role='torrent-details-files-table'] thead th:nth-child(2) .rz-handle", 40)
 
     await eventually(async () => (await controlledHeader.getSize()).width)
       .satisfies(`change by at least 10 from ${initialWidth}`, (nextWidth) => Math.abs(nextWidth - initialWidth) >= 10)

@@ -72,10 +72,10 @@ jobs:
       run: npm install
     - name: Lint
       run: npm run lint
-    - name: Test GitHub updater
-      run: node --test test/unit/github-updater.test.cjs test/unit/torrent-state.test.cjs test/unit/server-origin.test.cjs test/unit/deluge-upload.test.cjs test/unit/torrent-file-association.test.cjs test/unit/torrent-file-opening.test.cjs test/unit/launch-queue.test.cjs
     - name: Build web application
       run: npm run build
+    - name: Test updater, Deluge, and file handling
+      run: node --test test/unit/github-updater.test.cjs test/unit/torrent-state.test.cjs test/unit/server-origin.test.cjs test/unit/deluge-upload.test.cjs test/unit/torrent-file-association.test.cjs test/unit/torrent-file-opening.test.cjs test/unit/launch-queue.test.cjs test/unit/torrent-drop.test.cjs
     - name: Run tests
       env:
         TEST_CLIENT: ${{ matrix.client }}
@@ -120,8 +120,12 @@ jobs:
         key: ${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
     - name: Install npm dependencies
       run: npm install
+    - name: Lint
+      run: npm run lint
+    - name: Build application
+      run: npm run build
     - name: Test native file paths, launch queue, and updater
-      run: node --test test/unit/github-updater.test.cjs test/unit/torrent-file-opening.test.cjs test/unit/torrent-file-association.test.cjs test/unit/launch-queue.test.cjs
+      run: node --test test/unit/github-updater.test.cjs test/unit/torrent-file-opening.test.cjs test/unit/torrent-file-association.test.cjs test/unit/launch-queue.test.cjs test/unit/torrent-drop.test.cjs
     - name: Verify release version
       if: startsWith(github.ref, 'refs/tags/v')
       shell: bash
@@ -130,6 +134,12 @@ jobs:
     - name: Build Windows installer and updater metadata
       if: runner.os == 'Windows'
       run: npm run dist -- --win nsis
+    - name: Verify native Deluge add, drop, file launch, and remove
+      run: npm test -- ${{ runner.os == 'Windows' && '--dist' || '' }} --client deluge:2 --spec test/specs/platform/deluge-file-workflow.spec.ts --headless --force-title-bar-menu
+      env:
+        ELECTORRENT_TEST_BINARY: ${{ runner.os == 'Windows' && 'dist/win-unpacked/torrent-deck.exe' || '' }}
+        ELECTORRENT_TEST_NO_BACKEND: "1"
+        ELECTORRENT_TEST_REDUCED_MOTION: "1"
     - name: Verify Windows update dialog with system animations disabled
       if: runner.os == 'Windows'
       run: npm test -- --dist --client deluge:2 --spec test/specs/mock/software-update.spec.ts --headless

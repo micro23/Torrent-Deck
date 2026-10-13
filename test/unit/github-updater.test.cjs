@@ -7,7 +7,7 @@ const { EventEmitter } = require('node:events')
 const ts = require('typescript')
 const yaml = require('js-yaml')
 
-function fixture(packaged = true, macRelease) {
+function fixture(packaged = true, macRelease, response) {
   const updater = new EventEmitter()
   let checks = 0
   const installs = []
@@ -27,14 +27,14 @@ function fixture(packaged = true, macRelease) {
     isDestroyed: () => false,
   }
   const modules = {
-    electron: { app: { isPackaged: packaged, getVersion: () => '2.17.1', getAppPath: () => '/mock-app' } },
+    electron: { app: { isPackaged: packaged, getVersion: () => '2.17.1', getAppPath: () => '/mock-app', getPath: () => '/downloads' } },
     'electron-updater': { autoUpdater: updater },
     path: macRelease ? require('node:path').posix : require('node:path'),
     '@shared/ipc': { IPC_CHANNELS: { updates: { status: 'status' }, notifications: { push: 'notify' } } },
     './electorrent': { getWindow: () => null },
     './logger': { error() {}, verbose() {} },
     fs: { ...fs, readFileSync: filename => filename === '/mock-app/package.json' ? JSON.stringify({ manualMacUpdates: true }) : fs.readFileSync(filename) },
-    request: (_url, callback) => callback(null, { statusCode: 200 }, JSON.stringify(macRelease || { name: '99.0.0', url: 'http://localhost/download' })),
+    request: (_url, callback) => callback(null, { statusCode: response?.statusCode ?? 200 }, response?.body ?? JSON.stringify(macRelease || { name: '99.0.0', url: 'http://localhost/download' })),
   }
   const source = fs.readFileSync('src/main/lib/update.ts', 'utf8')
   const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, esModuleInterop: true } }).outputText
@@ -137,4 +137,46 @@ test('unsigned macOS rejects releases without compatible ZIPs', () => {
   f.api.checkForUpdates(true)
   assert.deepEqual(f.downloads, [])
   assert.equal(f.statuses.at(-1).type, 'error')
+})
+
+for (const response of [{ statusCode: 503, body: 'Unavailable' }, { statusCode: 200, body: '{invalid JSON' }, { statusCode: 200, body: '{}' }]) {
+  test(`invalid manual update response reports an actionable error: ${response.body}`, () => {
+    const f = fixture(false, undefined, response)
+    f.api.initialise(f.window, 'http://localhost/update')
+    assert.doesNotThrow(() => f.api.checkForUpdates(true))
+    assert.equal(f.statuses.at(-1).type, 'error')
+  })
+}
+
+test('native updater progress and errors are safe after the app window closes', () => {
+  const f = fixture()
+  f.api.initialise(f.window)
+  f.window.isDestroyed = () => true
+  f.window.setProgressBar = () => { throw new Error('Object has been destroyed') }
+  assert.doesNotThrow(() => {
+    f.updater.emit('download-progress', { percent: 50 })
+    f.updater.emit('update-downloaded', { version: '2.20.0' })
+    f.updater.emit('error', new Error('Offline'))
+  })
+})
+
+test('cancelled manual downloads leave the downloading state and unknown-size progress stays finite', () => {
+  const f = fixture(false)
+  f.api.initialise(f.window, 'http://localhost/update')
+  f.api.checkForUpdates(true)
+  f.api.downloadUpdateAfterApproval()
+  const item = new EventEmitter()
+  item.getTotalBytes = () => 0
+  item.getFilename = () => 'update.zip'
+  item.getReceivedBytes = () => 10
+  item.setSavePath = () => {}
+  const progress = []
+  f.window.setProgressBar = value => progress.push(value)
+  f.window.webContents.session.emit('will-download', {}, item)
+  item.emit('updated')
+  assert.ok(progress.every(Number.isFinite))
+  item.emit('done', {}, 'cancelled')
+  assert.equal(progress.at(-1), -1)
+  assert.equal(f.statuses.at(-1).type, 'error')
+  assert.match(f.statuses.at(-1).message, /cancelled/)
 })

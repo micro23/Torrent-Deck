@@ -4,6 +4,12 @@
     zoom: var(--deck-content-scale, .8);
 }
 
+// Toolbar dropdowns extend into the library. Keep their containing layer above
+// the sibling table and its sticky headers in every theme and content size.
+html[data-theme] body #page-torrents .main-panel > .deck-overview {
+    z-index: 4;
+}
+
 // Screenshot-inspired widths. Inline widths from manual resizing take precedence.
 html[data-theme] body #page-torrents #torrentTable {
     width:100% !important;

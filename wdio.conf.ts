@@ -60,6 +60,8 @@ function electronCapability(client: (typeof selectedClients)[number]): Webdriver
             appArgs: [
                 ...(useDistribution ? [] : [`--app=${process.env.ELECTORRENT_TEST_APP || path.resolve('.')}`]),
                 '--test',
+                // Tests must not open a real GitHub update dialog mid-workflow.
+                '-d',
                 `--test-user-data-dir=${testUserData}`,
                 `--user-data-dir=${testUserData}`,
                 ...(client.appArgs ?? []),
