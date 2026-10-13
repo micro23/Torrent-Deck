@@ -14,7 +14,7 @@ function load(filename, modules) {
   return exports
 }
 
-function runtime(result = 'torrent-hash', error) {
+function runtime(result = 'torrent-hash', error, response) {
   const calls = []
   const helpers = {
     HTTP_REQUEST_TIMEOUT: 30000,
@@ -24,7 +24,7 @@ function runtime(result = 'torrent-hash', error) {
     '@main/lib/bittorrent/helpers': helpers,
     request: (options, callback) => {
       calls.push(options)
-      callback(null, { statusCode: 200 }, { result, error })
+      callback(null, { statusCode: 200 }, response ? response(options.body) : { result, error })
     },
   })
   const api = new DelugeRuntime()
@@ -59,6 +59,55 @@ test('Deluge rejection is not treated as a successful upload', async () => {
 test('Deluge reports the server add error', async () => {
   const { api } = runtime(null, { message: 'Permission denied in download directory' })
   await assert.rejects(api.uploadTorrent(new Uint8Array([1]), 'example.torrent'), /Permission denied/)
+})
+
+test('Deluge rejects malformed RPC envelopes but accepts valid void results', async () => {
+  for (const body of [null, '<html>proxy error</html>', [], {}, { error: null }]) {
+    const { api } = runtime(null, null, () => body)
+    await assert.rejects(api.pause(['hash']), /Invalid response/)
+  }
+  await runtime(null).api.pause(['hash'])
+  const { api } = runtime(null, { code: 1 })
+  await assert.rejects(api.pause(['hash']), /Deluge API request failed/)
+})
+
+test('Deluge rejects malformed snapshots instead of replacing the list with an empty one', async () => {
+  for (const result of [null, {}, { torrents: null }, { torrents: [] }]) {
+    await assert.rejects(runtime(result).api.getSnapshot(), /Invalid torrent snapshot/)
+  }
+  const snapshot = await runtime({ torrents: {}, stats: {} }).api.getSnapshot()
+  assert.deepEqual(Object.keys(snapshot.torrents), [])
+})
+
+test('Deluge snapshot requests stay constant as torrent count grows', async () => {
+  for (const count of [0, 1, 1000]) {
+    const torrents = Object.fromEntries(Array.from({ length: count }, (_, i) => [String(i), { name: String(i) }]))
+    const { api, calls } = runtime(null, null, ({ method }) => ({ result:
+      method === 'web.update_ui' ? { torrents, stats: {} } : method === 'label.get_labels' ? ['movies'] : 1024 }))
+    api.supportsLabels = true
+    api.downloadLocation = '/downloads'
+    const snapshot = await api.getSnapshot()
+    assert.equal(Object.keys(snapshot.torrents).length, count)
+    assert.equal(calls.length, 3)
+  }
+})
+
+test('Deluge preserves unavailable free space instead of reporting a full disk', async () => {
+  for (const value of [null, undefined, '', ' ', -1, 'bad', 0, '1024']) {
+    const { api } = runtime(null, null, ({ method }) => ({ result:
+      method === 'web.update_ui' ? { torrents: {} } : value }))
+    api.downloadLocation = '/downloads'
+    assert.equal((await api.getSnapshot()).freeDiskSpace, value === 0 ? 0 : value === '1024' ? 1024 : null)
+  }
+})
+
+test('Deluge tracker edits preserve tier zero returned as a string', async () => {
+  const { api, calls } = runtime(null, null, ({ method }) => ({ result:
+    method === 'web.get_torrent_status' ? { trackers: [{ url: 'udp://first', tier: '0' }, { url: 'udp://second', tier: '0' }] } : null }))
+  await api.editTorrentTracker('hash', 'udp://second', 'udp://changed')
+  const trackers = calls[1].body.params[1]
+  assert.equal(trackers[1].url, 'udp://changed')
+  assert.equal(trackers[1].tier, 0)
 })
 
 test('failed add keeps the queued file and shows its error for retry', async () => {

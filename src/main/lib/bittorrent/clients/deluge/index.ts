@@ -173,8 +173,18 @@ export class DelugeRuntime implements BittorrentRuntime {
                 return
             }
 
-            if (body?.error) {
-                cb(new Error(body.error.message))
+            if (!body || typeof body !== "object" || Array.isArray(body)) {
+                cb(new Error("Invalid response from deluge API"))
+                return
+            }
+
+            if (body.error) {
+                cb(new Error(body.error.message || "Deluge API request failed"))
+                return
+            }
+
+            if (!Object.prototype.hasOwnProperty.call(body, "result")) {
+                cb(new Error("Invalid response from deluge API"))
                 return
             }
 
@@ -318,6 +328,10 @@ export class DelugeRuntime implements BittorrentRuntime {
             this.getFreeDiskSpace(),
         ])
 
+        if (!snapshot || typeof snapshot.torrents !== "object" || snapshot.torrents === null || Array.isArray(snapshot.torrents)) {
+            throw new Error("Invalid torrent snapshot from Deluge")
+        }
+
         return {
             ...snapshot,
             labels: Array.isArray(labels) ? labels : [],
@@ -330,7 +344,8 @@ export class DelugeRuntime implements BittorrentRuntime {
             return null
         }
 
-        const value = await defer<number>((done) => this.rpc("core.get_free_space", [this.downloadLocation], done))
+        const value = await defer<number | string | null>((done) => this.rpc("core.get_free_space", [this.downloadLocation], done))
+        if (value == null || (typeof value === "string" && !value.trim())) return null
         const numeric = typeof value === "number" ? value : Number(value)
         return Number.isFinite(numeric) && numeric >= 0 ? numeric : null
     }
@@ -459,7 +474,7 @@ export class DelugeRuntime implements BittorrentRuntime {
             }
             return [{
                 url: tracker.url,
-                tier: typeof tracker.tier === "number" ? tracker.tier : Number(tracker.tier) || undefined,
+                tier: tracker.tier != null && Number.isFinite(Number(tracker.tier)) ? Number(tracker.tier) : undefined,
                 status,
             }]
         })

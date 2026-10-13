@@ -183,9 +183,11 @@ describe("torrent details", function () {
     const trackersTable = trackersTab.$("[data-role='torrent-details-trackers-table']")
     const urlHeader = trackersTable.$("thead th:first-child")
     await urlHeader.click()
-    const sortedRows = await trackersTable.$$("tbody tr[data-tracker-url]")
-    const sortedUrls = await sortedRows.map((row) => row.getAttribute("data-tracker-url"))
-    sortedUrls.should.deep.equal([...displayedUrls].sort().reverse())
+    const expectedOrder = [...displayedUrls].sort().reverse().join("\n")
+    await eventually(async () => {
+      const sortedRows = await trackersTable.$$("tbody tr[data-tracker-url]")
+      return (await sortedRows.map((row) => row.getAttribute("data-tracker-url"))).join("\n")
+    }).satisfies("sort tracker URLs descending after the header click", (order) => order === expectedOrder)
 
     const handle = urlHeader.$(".rz-handle")
     await handle.waitForDisplayed({ timeout: 10_000 })
