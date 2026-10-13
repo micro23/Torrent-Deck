@@ -89,24 +89,48 @@ export class DragAndDropDirective implements IDirective {
         };
 
         const onDrop = (event: JQuery.TriggeredEvent) => {
-            const files = (event.originalEvent as DragEvent).dataTransfer?.files;
+            // The browser protects the drag data store once this event returns.
+            // Retain the File objects before waiting for platform metadata.
+            const files = Array.from((event.originalEvent as DragEvent).dataTransfer?.files || []);
+            const altKey = !!event.altKey;
+            const ctrlKey = !!event.ctrlKey;
+            event.preventDefault();
+            event.stopPropagation();
+            dragging = 0;
 
             metaPromise.then((meta) => {
-                const advancedKey = meta.isMacOS ? !!event.altKey : !!event.ctrlKey;
-                const torrentFiles = Array.from(files || []).filter((file) => this.isTorrentFile(file));
+                const advancedKey = meta.isMacOS ? altKey : ctrlKey;
+                const torrentFiles = files.filter((file) => this.isTorrentFile(file));
 
                 if (torrentFiles.length === 0) {
-                    if (files && files.length > 0) {
+                    if (files.length > 0) {
                         this.notifyInvalidFiles();
                     }
                     return [];
                 }
 
-                return Promise.all(torrentFiles.map((file) => this.serializeDroppedTorrent(file, advancedKey)));
-            }).then((files: PendingTorrentUploadFile[]) => {
+                return Promise.all(torrentFiles.map(async (file) => {
+                    try {
+                        return await this.serializeDroppedTorrent(file, advancedKey);
+                    } catch (error) {
+                        this.$rootScope.$applyAsync(() => this.$rootScope.$emit("notification", {
+                            title: "Could not open torrent file",
+                            message: `${file.name}: ${error instanceof Error ? error.message : String(error)}`,
+                            type: "negative",
+                        }));
+                        return null;
+                    }
+                }));
+            }).then((files) => {
                 this.$rootScope.$applyAsync(() => {
-                    this.broadcastTorrentFiles(files);
+                    this.broadcastTorrentFiles(files.filter((file): file is PendingTorrentUploadFile => file !== null));
                 });
+            }).catch((error: unknown) => {
+                this.$rootScope.$applyAsync(() => this.$rootScope.$emit("notification", {
+                    title: "Could not add dropped torrents",
+                    message: error instanceof Error ? error.message : String(error),
+                    type: "negative",
+                }));
             });
             this.$rootScope.$emit("show:draganddrop", false);
         };

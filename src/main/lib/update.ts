@@ -119,7 +119,17 @@ export function openUpdateFilePath() {
 }
 
 function downloadUpdate(url: string) {
-    mainWindow?.webContents.downloadURL(url)
+    if (!mainWindow || mainWindow.isDestroyed()) return
+    try {
+        mainWindow.webContents.downloadURL(url)
+    } catch (error) {
+        logger.error('Could not start update download', error)
+        notifyConnectionError()
+    }
+}
+
+function setProgressBar(value: number) {
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.setProgressBar(value)
 }
 
 function notifyUpdateDownloaded(filePath: string) {
@@ -145,22 +155,14 @@ function manualDownloader() {
         const totalBytes = item.getTotalBytes()
         const filePath = path.join(app.getPath('downloads'), item.getFilename())
 
-        if (totalBytes > 0 && fs.existsSync(filePath) && fs.statSync(filePath).size === totalBytes) {
-            item.cancel()
-            notifyUpdateDownloaded(filePath)
-            return
-        }
-
         item.setSavePath(filePath)
 
         item.on('updated', () => {
-            mainWindow?.setProgressBar(item.getReceivedBytes() / totalBytes)
+            setProgressBar(totalBytes > 0 ? item.getReceivedBytes() / totalBytes : 2)
         })
 
         item.on('done', (_event, state) => {
-            if (mainWindow && !mainWindow.isDestroyed()) {
-                mainWindow.setProgressBar(-1)
-            }
+            setProgressBar(-1)
 
             if (state === 'interrupted') {
                 logger.error('The download update was interrupted', state)
@@ -170,6 +172,8 @@ function manualDownloader() {
 
             if (state === 'completed') {
                 notifyUpdateDownloaded(item.getSavePath())
+            } else if (state === 'cancelled') {
+                sendUpdateStatus({ type: 'error', message: 'The update download was cancelled. Check for updates to try again.' })
             }
         })
     })
@@ -179,8 +183,8 @@ function manualUpdater() {
     if (!updateUrl) return
     notifyCheckingUpdate()
 
-    request(updateUrl, function(error: Error | null, response: { statusCode: number }, body: string) {
-        if (error) {
+    request({ url: updateUrl, timeout: 15000 }, function(error: Error | null, response: { statusCode: number }, body: string) {
+        if (error || !response) {
             logger.error('Manual updater error', error)
             notifyUpdateError()
             return
@@ -195,21 +199,26 @@ function manualUpdater() {
         if (response.statusCode === 200) {
             logger.verbose('Manual updater found update', response.statusCode)
 
-            const info = JSON.parse(body)
-            const newVersion = semver.clean(info.name)
-            if (!semver.valid(newVersion)) {
-                logger.error('Manual updater invalid semver', info.name)
-                return
+            try {
+                const info = JSON.parse(body)
+                const newVersion = semver.clean(info.name)
+                if (!newVersion || !semver.valid(newVersion) || typeof info.url !== 'string') {
+                    throw new Error('Invalid update metadata')
+                }
+                if (semver.gt(newVersion, version)) {
+                    update = info
+                    pendingManualDownloadUrl = info.url
+                    notifyUpdateAvailable()
+                } else {
+                    notifyUpToDate(newVersion)
+                }
+            } catch (error) {
+                logger.error('Manual updater invalid response', error)
+                notifyUpdateError()
             }
-
-            if (semver.gt(newVersion, version)) {
-                update = info
-                pendingManualDownloadUrl = info.url
-                notifyUpdateAvailable()
-            } else {
-                notifyUpToDate(newVersion)
-            }
+            return
         }
+        notifyUpdateError()
     })
 }
 
@@ -254,7 +263,7 @@ function manualMacUpdater() {
 
 function notify({ title = '', message = '', type = 'info' }) {
     const win = electorrent.getWindow()
-    if (!win) return
+    if (!win || win.isDestroyed()) return
 
     win.webContents.send(IPC_CHANNELS.notifications.push, {
         title,
@@ -366,7 +375,7 @@ function githubUpdater() {
 
     autoUpdater.on('error', (error: Error) => {
         logger.error('GitHub updater error', error)
-        mainWindow?.setProgressBar(-1)
+        setProgressBar(-1)
         notifyConnectionError()
     })
     autoUpdater.on('checking-for-update', notifyCheckingUpdate)
@@ -381,10 +390,10 @@ function githubUpdater() {
         notifyUpdateAvailable()
     })
     autoUpdater.on('download-progress', (progress) => {
-        mainWindow?.setProgressBar(progress.percent / 100)
+        setProgressBar(progress.percent / 100)
     })
     autoUpdater.on('update-downloaded', (info: UpdateInfo) => {
-        mainWindow?.setProgressBar(-1)
+        setProgressBar(-1)
         sendUpdateStatus({ type: 'downloaded', data: { ...releaseData(info), downloaded: true } })
     })
 }

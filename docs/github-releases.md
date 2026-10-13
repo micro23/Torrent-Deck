@@ -1,10 +1,10 @@
 # Releases and automatic updates
 
-Installed builds check public GitHub Releases on `micro23/Torrent-Deck`. Windows uses electron-updater with NSIS and the `latest.yml`, installer, and blockmap assets. After you approve an update, it downloads and launches the installer. macOS downloads the matching architecture ZIP and opens it so you can move the extracted app into Applications to replace Torrent-Deck. The previously published unsigned macOS builds can be blocked by Gatekeeper as damaged. Future macOS releases must be signed with Developer ID and notarized by Apple before upload. Linux packaging remains configured but is not included in these releases. Development builds skip production checks. The `--update-url` override retains the legacy JSON downloader for local tests.
+Installed builds check public GitHub Releases on `micro23/Torrent-Deck`. Windows uses electron-updater with NSIS and the `latest.yml`, installer, and blockmap assets. After you approve a download, **Restart And Update** installs it silently and relaunches the app. macOS downloads the matching architecture ZIP and opens it so you can move the extracted app into Applications to replace Torrent-Deck. Signing and notarization depend on the configured release credentials, as described below. Linux packaging remains configured but is not included in these releases. Development builds skip production checks. The `--update-url` override retains the legacy JSON downloader for local tests.
 
 Windows releases contain one NSIS installer and the `latest.yml` and blockmap metadata required for in-app updates. macOS releases contain a Universal ZIP that supports both Intel and Apple Silicon. With signing credentials, the ZIP is signed and notarized; without them, the workflow still builds and publishes an unsigned ZIP, which Gatekeeper may block as damaged. GitHub also adds source-code archives automatically. Existing installations using the old repository URL follow GitHub’s rename redirect; new release builds and update checks use `micro23/Torrent-Deck`.
 
-Choose **Check for Updates** in Help or the Settings → General update card. The dialog displays the installed version and latest stable GitHub version, reports checking and error states, and offers **Download Update** when a newer version exists. On Windows, choose **Quit And Install** after download. On macOS, choose **Open Downloaded ZIP**, extract the app, and replace Torrent-Deck in Applications.
+Choose **Check for Updates** in Help or the Settings → General update card. The dialog displays the installed version and latest stable GitHub version, reports checking and error states, and offers **Download Update** when a newer version exists. On Windows, choose **Restart And Update** after download. On macOS, choose **Open Downloaded ZIP**, extract the app, and replace Torrent-Deck in Applications.
 
 ## Publish a release
 
@@ -21,7 +21,7 @@ The release repository must be publicly readable. No GitHub access token is embe
 
 Run `npm run lint`, `npm run build`, and focused Deluge tests: `npm test -- --client deluge:2 --spec test/specs/standard/torrent-uploads.spec.ts --headless`.
 
-CI defaults to Deluge 2 only. Do not run other client tests until explicitly requested. Cross-platform source and packaging configurations remain maintained. Signed macOS release jobs verify Gatekeeper acceptance and notarization; unsigned builds cannot pass Gatekeeper. Windows SmartScreen prompts still require manual verification.
+CI defaults to Deluge 2 only. Do not run other client tests until explicitly requested. Cross-platform source and packaging configurations remain maintained. Native macOS and packaged Windows tests use a local Deluge JSON-RPC fixture to verify real file bytes through the picker, File menu, OS file-opening events, drag-and-drop, immediate list updates, and removal. The OS picker response and file-opening events are automated; Chromium supplies disk-backed dropped files. These checks do not physically operate Finder or Explorer or install a downloaded update. Separate Docker integration tests exercise a real Deluge daemon. Signed macOS release jobs verify Gatekeeper acceptance and notarization; unsigned builds cannot pass Gatekeeper. Windows SmartScreen prompts still require manual verification.
 
 ## Torrent-Deck identity
 
