@@ -61,6 +61,11 @@ test('Deluge reports the server add error', async () => {
   await assert.rejects(api.uploadTorrent(new Uint8Array([1]), 'example.torrent'), /Permission denied/)
 })
 
+test('Deluge identifies a rejected Web session for the connection error dialog', async () => {
+  const { api } = runtime(null, { message: 'Not authenticated', code: 1 })
+  await assert.rejects(api.pause(['hash']), error => error.code === 'DELUGE_SESSION_EXPIRED')
+})
+
 test('Deluge rejects malformed RPC envelopes but accepts valid void results', async () => {
   for (const body of [null, '<html>proxy error</html>', [], {}, { error: null }]) {
     const { api } = runtime(null, null, () => body)
