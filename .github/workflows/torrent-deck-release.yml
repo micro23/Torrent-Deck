@@ -90,8 +90,8 @@ jobs:
         if [ -n "$TEST_SPEC" ]; then
           args+=(--spec "$TEST_SPEC")
         elif [[ "$GITHUB_REF" == refs/tags/v* || "$GITHUB_EVENT_NAME" == pull_request ]]; then
-          # Validate uploads, columns, and content sizing for PRs/releases; master and schedule run the full suite.
-          args+=(--spec test/specs/standard/torrent-uploads.spec.ts --spec test/specs/standard/torrent-file-inputs.spec.ts --spec test/specs/standard/torrent-column-resize.spec.ts --spec test/specs/standard/content-size.spec.ts --spec test/specs/standard/dashboard-alignment.spec.ts --spec test/specs/standard/torrent-details.spec.ts)
+          # Validate uploads, headless queues, columns, and content sizing for PRs/releases; master and schedule run the full suite.
+          args+=(--spec test/specs/standard/torrent-uploads.spec.ts --spec test/specs/standard/torrent-file-inputs.spec.ts --spec test/specs/standard/torrent-column-resize.spec.ts --spec test/specs/standard/torrent-columns.spec.ts --spec test/specs/standard/upload-queue.spec.ts --spec test/specs/standard/content-size.spec.ts --spec test/specs/standard/dashboard-alignment.spec.ts --spec test/specs/standard/torrent-details.spec.ts)
         fi
         xvfb-run -a --server-args="-screen 0 1600x1200x24" -- npm test -- "${args[@]}"
 
