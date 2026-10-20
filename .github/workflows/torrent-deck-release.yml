@@ -31,6 +31,10 @@ env:
   NODE_VERSION: 22.x
   ELECTRON_IS_DEV: 0
 
+concurrency:
+  group: torrent-deck-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   test:
     if: inputs.build_only != true
@@ -166,7 +170,7 @@ jobs:
           echo "available=true" >> "$GITHUB_OUTPUT"
         else
           echo "available=false" >> "$GITHUB_OUTPUT"
-          echo "::notice::Building an unsigned universal macOS ZIP because signing and notarization credentials are not configured."
+          echo "::notice::Building an ad-hoc signed universal macOS ZIP because signing and notarization credentials are not configured."
         fi
     - name: Build signed and notarized universal macOS release
       if: runner.os == 'macOS' && startsWith(github.ref, 'refs/tags/v') && steps.macos_signing.outputs.available == 'true'
@@ -177,11 +181,12 @@ jobs:
         APPLE_ID: ${{ secrets.APPLE_ID }}
         APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
         APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-    - name: Build unsigned universal macOS release
-      if: runner.os == 'macOS' && startsWith(github.ref, 'refs/tags/v') && steps.macos_signing.outputs.available != 'true'
-      run: npm run dist -- --mac zip --universal --config.mac.notarize=false --config.extraMetadata.manualMacUpdates=true
+    - name: Build ad-hoc signed universal macOS release
+      if: runner.os == 'macOS' && steps.macos_signing.outputs.available != 'true'
+      run: npm run dist -- --mac zip --universal --config.mac.identity=- --config.mac.notarize=false --config.extraMetadata.manualMacUpdates=true
       env:
         CSC_IDENTITY_AUTO_DISCOVERY: false
+        CSC_FOR_PULL_REQUEST: true
     - name: Verify macOS signature and notarization
       if: runner.os == 'macOS' && startsWith(github.ref, 'refs/tags/v') && steps.macos_signing.outputs.available == 'true'
       shell: bash
@@ -203,7 +208,7 @@ jobs:
           dist/latest*.yml
         if-no-files-found: error
     - name: Upload macOS architecture ZIPs
-      if: runner.os == 'macOS' && startsWith(github.ref, 'refs/tags/v')
+      if: runner.os == 'macOS'
       uses: actions/upload-artifact@v7
       with:
         name: torrent-deck-dist-${{ runner.os }}

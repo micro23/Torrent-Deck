@@ -211,6 +211,10 @@ async function bootstrap() {
     }
 
     function showTorrentWindow() {
+        if (app.commandLine.hasSwitch('headless')) {
+            return
+        }
+
         if (!torrentWindow || torrentWindow.isDestroyed()) {
             return
         }

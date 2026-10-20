@@ -23,6 +23,8 @@ mac:
   category: public.app-category.utilities
   hardenedRuntime: true
   notarize: true
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.inherit.plist
   extendInfo:
     NSLocalNetworkUsageDescription: Torrent-Deck connects to torrent clients running on devices on your local network.
     CFBundleDocumentTypes:
@@ -70,4 +72,5 @@ fileAssociations:
     mimeType: application/x-bittorrent
     description: Torrent Files
 afterPack: ./util/after-pack.js
+afterAllArtifactBuild: ./util/after-sign.js
 electronVersion: 42.11.10
