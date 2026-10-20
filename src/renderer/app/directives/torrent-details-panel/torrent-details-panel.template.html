@@ -99,4 +99,8 @@
       refresh="ctl.scope.refresh"
     ></torrent-details-trackers-tab>
   </div>
+  <div class="torrent-details-scroll-hint" ng-if="ctl.scope.torrent && !ctl.isActiveTab('info')">
+    <i class="arrows alternate horizontal icon" aria-hidden="true"></i>
+    Scroll horizontally for more columns
+  </div>
 </div>

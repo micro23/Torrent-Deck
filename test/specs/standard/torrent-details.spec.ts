@@ -6,6 +6,7 @@ import { eventually } from "../../e2e/eventually"
 import { dragVisibleElement, visibleBounds } from "../../e2e/geometry"
 import { configureSpec, formatBytes, getTestFixture, requireFeature } from "../../framework/fixture"
 import { createTorrentFile } from "../../torrent"
+import { DECK_THEME_ORDER, DECK_THEME_TITLES } from "../../../src/shared/deck-themes"
 
 const tracker = getTestFixture().tracker
 const trackerUrls = [
@@ -134,8 +135,6 @@ describe("torrent details", function () {
       await eventually(() => panel.$("[data-role='torrent-details-info']").getText()).contains(torrentMetadata.infoHash)
       await right.click()
       await eventually(() => right.getAttribute("aria-pressed")).equals("true")
-      const body = await visibleBounds(".torrent-details-panel-body")
-      body.height.should.be.above(200, "right details body has usable height")
       // Angular applies ng-class through its animation queue after aria-pressed.
       // Wait for the visible layout, including on slower CI renderers.
       await eventually(async () => {
@@ -143,17 +142,44 @@ describe("torrent details", function () {
         const library = await visibleBounds("#page-torrents .main-content")
         return side.x - (library.x + library.width)
       }).satisfies("keep details beside the library", (gap) => gap >= -1)
+      const body = await visibleBounds(".torrent-details-panel-body")
+      body.height.should.be.above(200, "right details body has usable height")
       await eventually(() => panel.$("[data-role='torrent-details-info']").getText()).contains(torrentMetadata.infoHash)
 
       await torrent.openDetailsTab("files")
       await eventually(() => panel.$("[data-role='torrent-details-files']").getText()).contains("readme.txt")
+      ;(await visibleBounds("#torrentDetailsFilesTable thead th[data-col='name']")).width.should.be.above(150)
+      ;(await visibleBounds("#torrentDetailsFilesTable")).width.should.be.above(body.width + 100)
       await torrent.openDetailsTab("peers")
       await panel.$("[data-role='torrent-details-peers']").waitForDisplayed()
       ;(await visibleBounds("[data-role='torrent-details-peers']")).height.should.be.above(100)
+      ;(await visibleBounds("#torrentDetailsPeersTable thead th[data-col='ip']")).width.should.be.above(100)
+      ;(await visibleBounds("#torrentDetailsPeersTable")).width.should.be.above(body.width + 100)
       await torrent.openDetailsTab("trackers")
       await eventually(() => panel.$("[data-role='torrent-details-trackers']").getText()).satisfies(
         "show every tracker in the right panel", text => trackerUrls.every(url => text.includes(url)),
       )
+      const urlHeader = "#torrentDetailsTrackersTable thead th[data-col='url']"
+      ;(await visibleBounds(urlHeader)).width.should.be.above(250, "tracker URL retains a readable width")
+      ;(await visibleBounds("#torrentDetailsTrackersTable")).width.should.be.above(body.width + 100)
+      const close = await visibleBounds("[data-role='torrent-details-close']")
+      const side = await visibleBounds(".torrent-details-panel")
+      ;(close.x + close.width).should.be.at.most(side.x + side.width + 1, "close control fits in the sidebar")
+      // Focus the scroll region organically and move through the wide table.
+      // Reading DOM text alone would pass even when every URL was ellipsized.
+      const scroller = panel.$(".torrent-details-trackers-content")
+      const start = (await visibleBounds(urlHeader)).x
+      await browser.saveScreenshot("/tmp/torrent-deck-readable-right-details.png")
+      await scroller.click({ x: 20, y: 120 })
+      await browser.keys(["ArrowRight", "ArrowRight", "ArrowRight", "ArrowRight"])
+      await eventually(async () => (await visibleBounds(urlHeader)).x)
+        .satisfies("scroll horizontally to additional tracker columns", x => x < start - 20)
+      await browser.keys(Array.from({ length: 80 }, () => "ArrowRight"))
+      await eventually(async () => {
+        const actions = await visibleBounds("#torrentDetailsTrackersTable tbody .torrent-details-tracker-actions")
+        return actions.x + actions.width
+      }).satisfies("reach tracker actions by scrolling", right => right <= side.x + side.width + 1)
+      await browser.saveScreenshot("/tmp/torrent-deck-details-scrolled.png")
       await bottom.click()
       await eventually(() => bottom.getAttribute("aria-pressed")).equals("true")
       ;(await visibleBounds(".torrent-details-panel-body")).height.should.be.above(100)
@@ -161,6 +187,38 @@ describe("torrent details", function () {
     } finally {
       await bottom.click()
       await torrent.closeDetailsPanel()
+    }
+  })
+
+  it("preserves readable tracker columns across every theme", async function () {
+    this.timeout(300_000)
+    if (getTestFixture().client.features.torrentTrackers !== true) return this.skip()
+    const chooseTheme = async (theme: typeof DECK_THEME_ORDER[number]) => {
+      await this.app.openSettings()
+      await this.app.settingsGotoTab("general")
+      const choice = $(`button[aria-label='Choose ${DECK_THEME_TITLES[theme]} theme']`)
+      await choice.scrollIntoView({ block: "center", inline: "nearest" })
+      await choice.click()
+      await this.app.settingsSave()
+      await this.app.torrentsPageIsVisible()
+    }
+    try {
+      for (const theme of DECK_THEME_ORDER) {
+        await chooseTheme(theme)
+        const panel = await torrent.openDetailsPanel()
+        try {
+          await torrent.openDetailsTab("trackers")
+          await eventually(() => panel.$("[data-role='torrent-details-trackers']").getText()).contains(trackerUrls[0])
+          ;(await visibleBounds("#torrentDetailsTrackersTable thead th[data-col='url']")).width
+            .should.be.above(250, `${theme}: readable URL column`)
+          ;(await visibleBounds("#torrentDetailsTrackersTable thead th[data-col='status']")).width
+            .should.be.above(80, `${theme}: readable status column`)
+        } finally {
+          await torrent.closeDetailsPanel()
+        }
+      }
+    } finally {
+      await chooseTheme("darkhand")
     }
   })
 

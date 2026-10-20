@@ -8,7 +8,7 @@
       <p>{{ ctl.scope.error }}</p>
     </div>
   </div>
-  <div class="torrent-details-trackers-content torrent-details-table-content" ng-if="!ctl.scope.error && (!ctl.scope.loading || ctl.scope.loaded)">
+  <div class="torrent-details-trackers-content torrent-details-table-content" tabindex="0" role="region" aria-label="Torrent trackers, scroll to see all columns" ng-if="!ctl.scope.error && (!ctl.scope.loading || ctl.scope.loaded)">
   <table
     id="torrentDetailsTrackersTable"
     class="ui compact single line unstackable fixed torrent resize table torrent-details-table"
@@ -22,7 +22,7 @@
   >
     <thead>
       <tr sorting mode="ctl.scope.resizeProfile" on-sort-change="ctl.changeSorting($event)" default-sort-key="url" default-sort-order="false" sort-key-prefix="torrent-details-trackers.sort-key" sort-order-prefix="torrent-details-trackers.sort-desc">
-        <th ng-repeat="column in ctl.scope.columns track by column.id" rz-col="column.id" sort-header sort-key="column.id">
+        <th ng-repeat="column in ctl.scope.columns track by column.id" rz-col="column.id" data-col="{{ column.id }}" sort-header sort-key="column.id">
           <span class="torrent-details-table-header-label">{{ column.label }}</span>
         </th>
         <th id="torrentDetailsTrackersActions" class="torrent-details-tracker-actions" ng-if="ctl.canManageTrackers()">Actions</th>

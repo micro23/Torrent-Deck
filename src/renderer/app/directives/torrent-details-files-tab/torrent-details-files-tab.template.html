@@ -8,7 +8,7 @@
       <p>{{ ctl.scope.error }}</p>
     </div>
   </div>
-  <div class="torrent-details-files-content" ng-if="!ctl.scope.error && (!ctl.scope.loading || ctl.scope.loaded)">
+  <div class="torrent-details-files-content torrent-details-table-content" tabindex="0" role="region" aria-label="Torrent files, scroll to see all columns" ng-if="!ctl.scope.error && (!ctl.scope.loading || ctl.scope.loaded)">
     <div class="ui tiny negative message torrent-details-files-error" ng-if="ctl.scope.selectionError">
       {{ ctl.scope.selectionError }}
     </div>
@@ -35,7 +35,7 @@
         >
           <th
             ng-repeat="column in ctl.scope.files.columns track by column.id"
-            rz-col="column.id"
+            rz-col="column.id" data-col="{{ column.id }}"
             sort-header
             sort-key="column.id"
             disabled="column.sortable === false"
