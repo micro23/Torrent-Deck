@@ -56,8 +56,10 @@ TORRENT_FILE="/shared/${TORRENT_NAME}.torrent"
 # Create a torrent file and save it in the shared folder.
 rm -f "$TORRENT_FILE"
 mktorrent -p -a "$TRACKER_URL" -o "$TORRENT_FILE" "$CONTENT_PATH" >/dev/null
-# Generate a random unprivileged port (1024-65535)
-P2P_PORT=$((1024 + RANDOM % 64512))
+# Each fixture keeps several seeders alive. Let aria2 bind an available port
+# from a range instead of silently losing a seeder to a random port collision.
+P2P_PORTS="${ELECTORRENT_SEED_PORTS:-49152-65535}"
+SEED_LOG="/shared/${TORRENT_NAME}.seed.log"
 # Seed the torrent file (and contents)
 ARIA2_ARGS=(
     --allow-overwrite=true
@@ -65,7 +67,7 @@ ARIA2_ARGS=(
     --dir="$SEED_DIR"
     --enable-dht=false
     --enable-peer-exchange=false
-    --listen-port="$P2P_PORT"
+    --listen-port="$P2P_PORTS"
     --max-concurrent-downloads=1
     --seed-ratio=0.0
 )
@@ -74,8 +76,30 @@ ARIA2_ARGS=(
 if [ -n "$FOREGROUND" ]; then
     exec aria2c "${ARIA2_ARGS[@]}" "$TORRENT_FILE"
 fi
+: > "$SEED_LOG"
 (
     [ -n "$SEED_DELAY" ] && sleep "$SEED_DELAY"
     exec aria2c "${ARIA2_ARGS[@]}" "$TORRENT_FILE"
-) >/dev/null 2>&1 &
+) >>"$SEED_LOG" 2>&1 &
+SEED_PID=$!
+
+# Delayed seeds are intentional in download/peer tests. Other callers must not
+# receive a torrent whose seeder failed to start.
+if [ -z "$SEED_DELAY" ]; then
+    for seed_attempt in {1..100}; do
+        if ! kill -0 "$SEED_PID" 2>/dev/null; then
+            echo >&2 "Seeder exited before listening for $TORRENT_NAME"
+            cat "$SEED_LOG" >&2
+            exit 1
+        fi
+        if grep -q 'IPv4.*BitTorrent: listening on TCP port' "$SEED_LOG"; then
+            exit 0
+        fi
+        sleep 0.1
+    done
+    echo >&2 "Seeder did not begin listening for $TORRENT_NAME"
+    cat "$SEED_LOG" >&2
+    kill "$SEED_PID" 2>/dev/null || true
+    exit 1
+fi
 exit 0
