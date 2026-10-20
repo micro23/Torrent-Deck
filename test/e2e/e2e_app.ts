@@ -495,7 +495,18 @@ export class App {
     }
   }
 
+  private async waitForSettingsTransition() {
+    const overlay = $(".app-content > .overlay:has(settings-page)")
+    await eventually(() => overlay.getAttribute("class")).satisfies(
+      "finish the settings overlay animation",
+      (className) => !(className || "").split(/\s+/).some((name) =>
+        name === "ng-animate" || name.startsWith("ng-hide-")),
+      { timeout: this.timeout },
+    )
+  }
+
   async openSettings() {
+    await this.waitForSettingsTransition()
     const settingsPage = $("#page-settings")
     if (await settingsPage.isDisplayed()) {
       return
@@ -509,6 +520,7 @@ export class App {
     await settingsButton.waitForClickable()
     await settingsButton.click()
     await this.settingsPageIsVisible()
+    await this.waitForSettingsTransition()
   }
 
   async settingsGotoTab(tab: string) {
@@ -527,6 +539,7 @@ export class App {
     await saveBtn.waitForClickable()
     await saveBtn.click()
     await this.settingsPageIsHidden()
+    await this.waitForSettingsTransition()
     await $(".app-content > .overlay .ui.inverted.solid.dimmer").waitForDisplayed({ reverse: true })
   }
 
@@ -536,6 +549,7 @@ export class App {
     await cancelBtn.waitForClickable()
     await cancelBtn.click()
     await this.settingsPageIsHidden()
+    await this.waitForSettingsTransition()
   }
 
   async getSettingsServerCount(): Promise<number> {
