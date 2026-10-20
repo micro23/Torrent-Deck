@@ -1,5 +1,12 @@
 # Changes since the Electorrent fork
 
+## 2.19.17 — consolidated master and upstream updates
+
+- Merge the pending status bar, tracker logo/dashboard and right-side detail fixes into master.
+- Integrate all eight upstream updates, including dependency refreshes and keeping headless upload windows hidden.
+- Verify macOS app/helper signatures, runtime entitlements and both universal architectures inside the release ZIP.
+- Build matching macOS and Windows installers, with ad-hoc macOS signing when Developer ID credentials are unavailable.
+
 ## 2.19.16 — visible right-side torrent details
 
 - Anchor Darkhand's right-side details card to the main panel instead of a zero-height wrapper, so its tabs and content remain visible.
