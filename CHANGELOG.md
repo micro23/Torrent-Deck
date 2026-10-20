@@ -1,5 +1,12 @@
 # Changes since the Electorrent fork
 
+## 2.19.15 — tracker logos and WebUI dashboard alignment
+
+- Retry tracker site, recognized site root and cached favicons in the WebUI's order; show a neutral network symbol only if every source fails.
+- Prevent failed images from leaking Chromium's broken-image indicator through theme styling.
+- Keep Darkhand statistics and chart captions above the fixed footer, and size short torrent tables to their contents.
+- Match the WebUI's outline statistics icons, horizontal card layout, transfer-limit captions, active counts and clock labels.
+
 ## 2.19.14 — WebUI session status bar
 
 - Match the Deluge Deck footer across all 38 themes: free-space badge, live sync state, DHT nodes, transfer rates and server public IP.
