@@ -1,5 +1,11 @@
 # Changes since the Electorrent fork
 
+## 2.19.18 — readable torrent detail tables
+
+- Preserve readable file, peer and tracker column widths in narrow details panels, with keyboard-accessible horizontal scrolling across themes.
+- Keep table headings visible while scrolling, and pin tracker actions where there is enough space without covering the URL.
+- Fit the Add tracker and close controls into narrow panels and prevent Info sections from overflowing their container.
+
 ## 2.19.17 — consolidated master and upstream updates
 
 - Merge the pending status bar, tracker logo/dashboard and right-side detail fixes into master.

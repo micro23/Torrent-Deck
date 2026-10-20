@@ -1,5 +1,6 @@
 import fs from "node:fs"
 import { $, browser } from "@wdio/globals"
+import { Key } from "webdriverio"
 import parseTorrent from "parse-torrent"
 import * as e2e from "../../e2e"
 import { eventually } from "../../e2e/eventually"
@@ -134,8 +135,6 @@ describe("torrent details", function () {
       await eventually(() => panel.$("[data-role='torrent-details-info']").getText()).contains(torrentMetadata.infoHash)
       await right.click()
       await eventually(() => right.getAttribute("aria-pressed")).equals("true")
-      const body = await visibleBounds(".torrent-details-panel-body")
-      body.height.should.be.above(200, "right details body has usable height")
       // Angular applies ng-class through its animation queue after aria-pressed.
       // Wait for the visible layout, including on slower CI renderers.
       await eventually(async () => {
@@ -143,23 +142,60 @@ describe("torrent details", function () {
         const library = await visibleBounds("#page-torrents .main-content")
         return side.x - (library.x + library.width)
       }).satisfies("keep details beside the library", (gap) => gap >= -1)
+      const body = await visibleBounds(".torrent-details-panel-body")
+      body.height.should.be.above(200, "right details body has usable height")
       await eventually(() => panel.$("[data-role='torrent-details-info']").getText()).contains(torrentMetadata.infoHash)
 
       await torrent.openDetailsTab("files")
       await eventually(() => panel.$("[data-role='torrent-details-files']").getText()).contains("readme.txt")
+      ;(await visibleBounds("#torrentDetailsFilesTable thead th[data-col='name']")).width.should.be.above(150)
+      ;(await visibleBounds("#torrentDetailsFilesTable")).width.should.be.above(body.width + 100)
       await torrent.openDetailsTab("peers")
       await panel.$("[data-role='torrent-details-peers']").waitForDisplayed()
       ;(await visibleBounds("[data-role='torrent-details-peers']")).height.should.be.above(100)
+      await panel.$("#torrentDetailsPeersTable thead th[data-col='ip']").waitForDisplayed({ timeout: 30_000 })
+      ;(await visibleBounds("#torrentDetailsPeersTable thead th[data-col='ip']")).width.should.be.above(100)
+      ;(await visibleBounds("#torrentDetailsPeersTable")).width.should.be.above(body.width + 100)
       await torrent.openDetailsTab("trackers")
       await eventually(() => panel.$("[data-role='torrent-details-trackers']").getText()).satisfies(
         "show every tracker in the right panel", text => trackerUrls.every(url => text.includes(url)),
       )
+      const urlHeader = "#torrentDetailsTrackersTable thead th[data-col='url']"
+      ;(await visibleBounds(urlHeader)).width.should.be.above(250, "tracker URL retains a readable width")
+      ;(await visibleBounds("#torrentDetailsTrackersTable")).width.should.be.above(body.width + 100)
+      const close = await visibleBounds("[data-role='torrent-details-close']")
+      const side = await visibleBounds(".torrent-details-panel")
+      ;(close.x + close.width).should.be.at.most(side.x + side.width + 1, "close control fits in the sidebar")
+      // Focus the scroll region organically and move through the wide table.
+      // Reading DOM text alone would pass even when every URL was ellipsized.
+      const scroller = panel.$(".torrent-details-trackers-content")
+      const start = (await visibleBounds(urlHeader)).x
+      await browser.saveScreenshot("/tmp/torrent-deck-readable-right-details.png")
+      await scroller.click({ x: 20, y: 120 })
+      for (let press = 0; press < 4; press++) await browser.keys("ArrowRight")
+      await eventually(async () => (await visibleBounds(urlHeader)).x)
+        .satisfies("scroll horizontally to additional tracker columns", x => x < start - 20)
+      // keys([key, key, ...]) holds repeated keys down before releasing them;
+      // Linux does not turn those repeated keydowns into distinct scrolls.
+      const arrows = browser.action("key")
+      for (let press = 0; press < 80; press++) arrows.down(Key.ArrowRight).up(Key.ArrowRight).pause(20)
+      await arrows.perform()
+      await eventually(async () => {
+        const actions = await visibleBounds("#torrentDetailsTrackersTable tbody .torrent-details-tracker-actions")
+        return actions.x + actions.width
+      }).satisfies("reach tracker actions by scrolling", right => right <= side.x + side.width + 1)
+      await browser.saveScreenshot("/tmp/torrent-deck-details-scrolled.png")
       await bottom.click()
       await eventually(() => bottom.getAttribute("aria-pressed")).equals("true")
       ;(await visibleBounds(".torrent-details-panel-body")).height.should.be.above(100)
       await eventually(() => panel.$("[data-role='torrent-details-trackers']").getText()).contains(trackerUrls[0])
     } finally {
       await bottom.click()
+      await eventually(async () => {
+        const details = await visibleBounds(".torrent-details-panel")
+        const library = await visibleBounds("#page-torrents .main-content")
+        return details.x - library.x
+      }).satisfies("finish returning details to the bottom", gap => Math.abs(gap) < 2)
       await torrent.closeDetailsPanel()
     }
   })

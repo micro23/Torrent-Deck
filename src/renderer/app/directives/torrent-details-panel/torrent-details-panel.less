@@ -7,6 +7,7 @@ torrent-details-panel {
         display: flex;
         flex-direction: column;
         min-height: 0;
+        container-type: inline-size;
         background-color: @pageForeground;
         border-top: 1px solid @borderColor;
     }
@@ -69,6 +70,77 @@ torrent-details-panel {
             display: flex;
             min-width: 0;
             min-height: 0;
+        }
+    }
+
+    // Fixed-layout tables otherwise divide the sidebar into tiny equal columns
+    // before the user has saved any column widths. Keep the table's readable
+    // canvas inside a keyboard-accessible scroll area, in either placement.
+    .torrent-details-table-content {
+        overflow: auto !important;
+        overscroll-behavior: contain;
+
+        > .ui.torrent.table {
+            min-width: 1400px;
+
+            thead th { width: 120px; position: sticky; top: 0; z-index: 1; }
+            thead th[data-col='url'] { width: 360px; }
+            thead th[data-col='status'] { width: 150px; }
+            thead th[data-col='lastAnnounce'],
+            thead th[data-col='nextAnnounce'] { width: 180px; }
+            thead th[data-col='message'] { width: 280px; }
+            thead th[data-col='ip'],
+            thead th[data-col='client'] { width: 200px; }
+
+            .torrent-details-tracker-actions {
+                position: sticky;
+                right: 0;
+                width: 100px;
+                z-index: 1;
+                box-shadow: -1px 0 @borderColor;
+            }
+            thead .torrent-details-tracker-actions { z-index: 2; }
+        }
+
+        &:focus-visible { outline: 2px solid @primaryColor; outline-offset: -2px; }
+    }
+
+    .torrent-details-files-content > .ui.torrent.table {
+        min-width: 900px;
+        thead th { width: auto; }
+        thead th[data-col='name'],
+        thead th[data-col='path'] { width: 360px; }
+    }
+
+    .torrent-details-scroll-hint {
+        display: none;
+        flex: 0 0 auto;
+        padding: .5rem .75rem;
+        color: var(--muted, @mutedTextColor);
+        font-size: .85rem;
+        border-top: 1px solid var(--line, @borderColor);
+    }
+
+    @container (max-width: 600px) {
+        .torrent-details-scroll-hint { display: block; }
+        // A pinned actions column would cover part of the URL at this width.
+        .torrent-details-table-content > .ui.torrent.table .torrent-details-tracker-actions {
+            position: static;
+            right: auto;
+            box-shadow: none;
+        }
+        .torrent-details-table-content > .ui.torrent.table thead .torrent-details-tracker-actions {
+            position: sticky;
+        }
+    }
+
+    // Panel width, rather than window width, determines whether the button's
+    // label fits alongside all four tabs and the close control.
+    @container (max-width: 480px) {
+        .torrent-details-add-tracker-label { display: none; }
+        .ui.top.attached.tabular.menu.torrent-details-tabs {
+            > .item { padding-right: .5rem; padding-left: .5rem; }
+            > .right.menu > .torrent-details-add-tracker > .icon { margin: 0; }
         }
     }
 
