@@ -69,6 +69,8 @@ export class TorrentsPageController {
         $scope.connectedPeers = 0;
         $scope.sessionStats = {};
         $scope.activeTorrentCount = 0;
+        $scope.downloadingTorrentCount = 0;
+        $scope.seedingTorrentCount = 0;
         const layoutKey = "electorrent-deck-layout";
         const readStored = (key: string, fallback: any) => {
             try { return JSON.parse(localStorage.getItem(key) || "null") || fallback; } catch { return fallback; }
@@ -109,8 +111,10 @@ export class TorrentsPageController {
                     return `${command}${((row[0] - start) / ($scope.deckChartMinutes * 60000) * 700).toFixed(2)},${(110 - row[column] / max * 100).toFixed(2)}`;
                 }).join(" ");
             });
-            $scope.deckChartStart = start;
-            $scope.deckChartNow = now;
+            $scope.deckChartLabels = [start, start + $scope.deckChartMinutes * 30000, now].map(time => {
+                const date = new Date(time);
+                return $scope.deckChartMinutes >= 1440 ? date.toLocaleDateString() : date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+            });
         }
         function recordDeckHistory() {
             const now = Date.now();
@@ -291,6 +295,8 @@ export class TorrentsPageController {
 
         $scope.$on("wipe:torrents", () => {
             initialSnapshotRendered = false;
+            $scope.sessionStats = {};
+            $scope.freeDiskSpace = null;
             $scope.connectionLost = false;
             setSyncConnectionState("normal");
             deselectAll();
@@ -1019,6 +1025,8 @@ export class TorrentsPageController {
             $scope.totalDownloaded = allTorrents.reduce((acc: number, { downloaded }: { downloaded: number }) => acc + downloaded, 0);
             $scope.totalUploaded = allTorrents.reduce((acc: number, { uploaded }: { uploaded: number }) => acc + uploaded, 0);
             $scope.connectedPeers = allTorrents.reduce((acc: number, torrent: any) => acc + (torrent.peersConnected || 0), 0);
+            $scope.downloadingTorrentCount = allTorrents.filter((torrent: any) => torrent.isStatusDownloading()).length;
+            $scope.seedingTorrentCount = allTorrents.filter((torrent: any) => torrent.isStatusSeeding()).length;
             $scope.activeTorrentCount = allTorrents.filter((torrent: any) => (torrent.isStatusDownloading() || torrent.isStatusSeeding())).length;
             recordDeckHistory();
             downloadHistory.push($scope.totalDownloadSpeed);
@@ -1085,7 +1093,7 @@ export class TorrentsPageController {
                 if (serverId !== $rootScope.$server?.id) {
                     return;
                 }
-                if (torrents.sessionStats) $scope.sessionStats = torrents.sessionStats;
+                $scope.sessionStats = torrents.sessionStats || {};
                 newTorrents(torrents);
                 deleteTorrents(torrents);
                 changeTorrents(torrents);

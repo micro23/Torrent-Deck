@@ -1,8 +1,9 @@
 import fs from "node:fs"
+import { $, browser } from "@wdio/globals"
 import parseTorrent from "parse-torrent"
 import * as e2e from "../../e2e"
 import { eventually } from "../../e2e/eventually"
-import { dragVisibleElement } from "../../e2e/geometry"
+import { dragVisibleElement, visibleBounds } from "../../e2e/geometry"
 import { configureSpec, formatBytes, getTestFixture, requireFeature } from "../../framework/fixture"
 import { createTorrentFile } from "../../torrent"
 
@@ -114,6 +115,49 @@ describe("torrent details", function () {
     clipboardText.should.equal(torrentMetadata.infoHash)
 
     await torrent.closeDetailsPanel()
+  })
+
+  it("keeps all details tabs populated when switching between bottom and right", async function () {
+    this.timeout(90_000)
+    const features = getTestFixture().client.features
+    if (features.torrentPeers !== true || features.torrentTrackers !== true) return this.skip()
+    await browser.electron.execute((electron) => {
+      const window = electron.BrowserWindow.getAllWindows().find(window => window.webContents.getURL().startsWith("file:"))
+      if (!window) throw new Error("App window not found")
+      window.setSize(1600, 1000)
+    })
+    const right = $(".dh-switches [aria-label='Details placement'] button:first-child")
+    const bottom = $(".dh-switches [aria-label='Details placement'] button:last-child")
+    await bottom.click()
+    const panel = await torrent.openDetailsPanel()
+    try {
+      await eventually(() => panel.$("[data-role='torrent-details-info']").getText()).contains(torrentMetadata.infoHash)
+      await right.click()
+      await eventually(() => right.getAttribute("aria-pressed")).equals("true")
+      const body = await visibleBounds(".torrent-details-panel-body")
+      body.height.should.be.above(200, "right details body has usable height")
+      const side = await visibleBounds(".torrent-details-panel")
+      const library = await visibleBounds("#page-torrents .main-content")
+      side.x.should.be.at.least(library.x + library.width, "details stay beside the library")
+      await eventually(() => panel.$("[data-role='torrent-details-info']").getText()).contains(torrentMetadata.infoHash)
+
+      await torrent.openDetailsTab("files")
+      await eventually(() => panel.$("[data-role='torrent-details-files']").getText()).contains("readme.txt")
+      await torrent.openDetailsTab("peers")
+      await panel.$("[data-role='torrent-details-peers']").waitForDisplayed()
+      ;(await visibleBounds("[data-role='torrent-details-peers']")).height.should.be.above(100)
+      await torrent.openDetailsTab("trackers")
+      await eventually(() => panel.$("[data-role='torrent-details-trackers']").getText()).satisfies(
+        "show every tracker in the right panel", text => trackerUrls.every(url => text.includes(url)),
+      )
+      await bottom.click()
+      await eventually(() => bottom.getAttribute("aria-pressed")).equals("true")
+      ;(await visibleBounds(".torrent-details-panel-body")).height.should.be.above(100)
+      await eventually(() => panel.$("[data-role='torrent-details-trackers']").getText()).contains(trackerUrls[0])
+    } finally {
+      await bottom.click()
+      await torrent.closeDetailsPanel()
+    }
   })
 
   it("shows expected torrent file information in the files tab", async function () {

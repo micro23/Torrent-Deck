@@ -40,7 +40,7 @@ export interface TorrentUpdates {
     dirty?: boolean,
     trackers?: any[],
     freeDiskSpace?: number | null,
-    sessionStats?: Record<string, number | boolean>,
+    sessionStats?: Record<string, number | boolean | string>,
     alternativeSpeedLimitsEnabled?: boolean,
 }
 
