@@ -86,7 +86,7 @@ jobs:
         TEST_SPEC: ${{ inputs.spec }}
         ELECTORRENT_TEST_REDUCED_MOTION: "1"
       run: |
-        args=(--client "$TEST_CLIENT" --headless)
+        args=(--client "$TEST_CLIENT" --headless --parallel)
         if [ -n "$TEST_SPEC" ]; then
           args+=(--spec "$TEST_SPEC")
         elif [[ "$GITHUB_REF" == refs/tags/v* || "$GITHUB_EVENT_NAME" == pull_request ]]; then
@@ -100,7 +100,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest, windows-latest]
+        os: [macos-15-intel, windows-latest]
 
     runs-on: ${{ matrix.os }}
 

@@ -136,9 +136,13 @@ describe("torrent details", function () {
       await eventually(() => right.getAttribute("aria-pressed")).equals("true")
       const body = await visibleBounds(".torrent-details-panel-body")
       body.height.should.be.above(200, "right details body has usable height")
-      const side = await visibleBounds(".torrent-details-panel")
-      const library = await visibleBounds("#page-torrents .main-content")
-      side.x.should.be.at.least(library.x + library.width, "details stay beside the library")
+      // Angular applies ng-class through its animation queue after aria-pressed.
+      // Wait for the visible layout, including on slower CI renderers.
+      await eventually(async () => {
+        const side = await visibleBounds(".torrent-details-panel")
+        const library = await visibleBounds("#page-torrents .main-content")
+        return side.x - (library.x + library.width)
+      }).satisfies("keep details beside the library", (gap) => gap >= -1)
       await eventually(() => panel.$("[data-role='torrent-details-info']").getText()).contains(torrentMetadata.infoHash)
 
       await torrent.openDetailsTab("files")
