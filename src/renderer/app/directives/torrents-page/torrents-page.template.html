@@ -276,20 +276,24 @@
             <div action-header actions="$btclient.actionHeader" labels="labels" enabled="noneSelected()" click="doAction"></div>
             <button type="button" class="ui button" data-role="selection-remove" ng-click="removeSelected()">Remove</button>
         </nav>
-        <div class="action footer status-bar">
-            <span class="usa-footer-eagle" ng-if="$root.deckTheme === 'independence'" aria-hidden="true"></span>
-            <span class="terminal-sync-status">{{connectionLost ? 'OFFLINE' : 'LIVE SYNC'}} [{{connectionLost ? ' ' : '✓'}}] / IP: {{$server.ip}} ]</span>
-            <div class="client-version" ng-if="$btclient.version">
-                {{$btclient.name}} {{$btclient.version}}
-            </div>
-            <div class="download-speed">
-                <i class="ui blue arrow down icon"></i>
-                {{ totalDownloadSpeed | speed }} <span ng-if="totalDownloaded">({{ totalDownloaded | bytes:2 }})</span>
-            </div>
-            <div class="upload-speed">
-                <i class="ui orange arrow up icon"></i>
-                {{ totalUploadSpeed | speed }} <span ng-if="totalUploaded">({{ totalUploaded | bytes:2 }})</span>
-            </div>
+        <footer class="action footer status-bar" aria-label="Session status">
+            <span class="status-free-space free-space" ng-if="$btclient.features.freeDiskSpace" title="Available free space on the torrent server">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h14l3 9v7a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-7zM2 12h20M6 16h.01M10 16h.01" /></svg>
+                <span class="free-space-label">Free</span><strong class="free-space-value">{{freeDiskSpace != null ? (freeDiskSpace | bytes) : 'Checking…'}}</strong>
+            </span>
+            <span class="status-sync" title="{{$btclient.name}} {{$btclient.version}}" role="status">
+                <i class="status-dot" ng-class="{live: !connectionLost}" aria-hidden="true"></i>{{connectionLost ? 'Connection interrupted' : 'Live sync'}}
+            </span>
+            <span class="status-dht" ng-if="sessionStats.dht_nodes > 0">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="2" width="6" height="6" rx="1"/><rect x="2" y="16" width="6" height="6" rx="1"/><rect x="16" y="16" width="6" height="6" rx="1"/><path d="M12 8v4M5 16v-4h14v4"/></svg>{{sessionStats.dht_nodes}} DHT nodes
+            </span>
+            <span class="status-rail-spacer" aria-hidden="true"></span>
+            <span class="download-speed" aria-label="Download speed">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14m-7-7 7 7 7-7"/></svg>{{ totalDownloadSpeed | speed }}
+            </span>
+            <span class="upload-speed" aria-label="Upload speed">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5m-7 7 7-7 7 7"/></svg>{{ totalUploadSpeed | speed }}
+            </span>
             <div ng-if="$btclient.features.alternativeSpeedLimits" class="alternative-speed-limits-control">
                 <a
                     href=""
@@ -306,11 +310,11 @@
                     {{ alternativeSpeedLimitsEnabled ? 'Slow speed mode' : 'Normal speed mode' }}
                 </div>
             </div>
-            <div class="free-space" ng-if="$btclient.features.freeDiskSpace && freeDiskSpace != null">
-                <i class="ui grey database icon"></i>
-                <span class="free-space-label">Free: </span><span class="free-space-value">{{ freeDiskSpace | bytes }}</span>
-            </div>
-        </div>
+            <span class="status-ip" title="Public IP reported by the torrent server">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 8.8a15 15 0 0 1 20 0M5 12a10 10 0 0 1 14 0m-11 3.2a5 5 0 0 1 8 0M12 19h.01"/></svg>{{sessionStats.external_ip || 'IP unavailable'}}
+            </span>
+            <span class="usa-footer-eagle" ng-if="$root.deckTheme === 'independence'" aria-hidden="true"></span>
+        </footer>
     </div>
 
     <context-menu-ipc bind="contextMenu" menu="$btclient.contextMenu" click="doContextAction" debug="debug">

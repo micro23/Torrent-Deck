@@ -291,6 +291,8 @@ export class TorrentsPageController {
 
         $scope.$on("wipe:torrents", () => {
             initialSnapshotRendered = false;
+            $scope.sessionStats = {};
+            $scope.freeDiskSpace = null;
             $scope.connectionLost = false;
             setSyncConnectionState("normal");
             deselectAll();
@@ -1085,7 +1087,7 @@ export class TorrentsPageController {
                 if (serverId !== $rootScope.$server?.id) {
                     return;
                 }
-                if (torrents.sessionStats) $scope.sessionStats = torrents.sessionStats;
+                $scope.sessionStats = torrents.sessionStats || {};
                 newTorrents(torrents);
                 deleteTorrents(torrents);
                 changeTorrents(torrents);

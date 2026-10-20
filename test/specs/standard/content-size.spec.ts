@@ -104,17 +104,35 @@ describe("main content size", function () {
       await this.app.settingsSave()
       await this.app.torrentsPageIsVisible()
       assert.equal(await $("html").getAttribute("data-theme"), theme)
+      const rail = await bounds(".status-bar")
+      const disk = await bounds(".status-bar .status-free-space")
+      const sync = await bounds(".status-bar .status-sync")
+      const ip = await bounds(".status-bar .status-ip")
+      if (theme === "darkhand") {
+        const sidebar = await bounds("torrent-sidebar")
+        assert.isAtMost(sidebar.y + sidebar.height, rail.y, "Darkhand: sidebar stays above the full-width rail")
+      }
+      assert.isAtLeast(disk.x, rail.x, `${theme}: disk inside rail`)
+      assert.isAbove(sync.x, disk.x, `${theme}: sync follows disk`)
+      assert.isAbove(ip.x, sync.x, `${theme}: IP follows sync`)
+      assert.isAtMost(ip.x + ip.width, rail.x + rail.width + 1, `${theme}: IP inside rail`)
+      assert.isAtLeast(disk.y, rail.y, `${theme}: disk below rail top`)
+      assert.isAtMost(disk.y + disk.height, rail.y + rail.height + 1, `${theme}: disk inside rail height`)
+
       assert.equal(await scale(), .8, theme)
       const sidebarWidth = (await bounds("torrent-sidebar")).width
       const menuHeight = await topMenuHeight()
       const height = (await bounds("#torrentTable thead")).height
-      await chooseSize("Increase Content Size (10%)")
-      await eventually(scale).equals(.9)
-      assert.closeTo((await bounds("#torrentTable thead")).height / height, 1.125, .06, theme)
-      assert.equal((await bounds("torrent-sidebar")).width, sidebarWidth, theme)
-      assert.equal(await topMenuHeight(), menuHeight, theme)
-      await chooseSize("Reset Content Size (80%)")
-      await eventually(scale).equals(.8)
+      try {
+        await chooseSize("Increase Content Size (10%)")
+        await eventually(scale).equals(.9)
+        assert.closeTo((await bounds("#torrentTable thead")).height / height, 1.125, .06, theme)
+        assert.closeTo((await bounds("torrent-sidebar")).width, sidebarWidth, 1, theme)
+        assert.equal(await topMenuHeight(), menuHeight, theme)
+      } finally {
+        await chooseSize("Reset Content Size (80%)")
+        await eventually(scale).equals(.8)
+      }
     })
   }
 })

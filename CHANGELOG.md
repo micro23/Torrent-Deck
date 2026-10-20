@@ -1,5 +1,12 @@
 # Changes since the Electorrent fork
 
+## 2.19.14 — WebUI session status bar
+
+- Match the Deluge Deck footer across all 38 themes: free-space badge, live sync state, DHT nodes, transfer rates and server public IP.
+- Restore the shared theme styling for footer badges and sync indicators, including Terminal's text display.
+- Keep Darkhand's sidebar above its full-width footer so it cannot cover session status.
+- Preserve Deluge login cookies when the computer clock differs from the server.
+
 ## 2.19.13 — Deluge response and tracker reliability
 
 - Reject malformed Deluge replies and snapshots instead of reporting false success or clearing the torrent list.
