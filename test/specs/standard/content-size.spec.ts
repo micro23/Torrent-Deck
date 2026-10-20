@@ -1,9 +1,12 @@
 import chai from "chai"
 import { $, $$, browser } from "@wdio/globals"
-import { configureSpec } from "../../framework/fixture"
+import { configureSpec, getTestFixture } from "../../framework/fixture"
 import { eventually } from "../../e2e/eventually"
 import { restartApplication } from "../../shared"
 import { DECK_THEME_ORDER, DECK_THEME_TITLES } from "../../../src/shared/deck-themes"
+
+import type { Torrent } from "../../e2e"
+import { createTorrentFile } from "../../torrent"
 
 const { assert } = chai
 
@@ -41,6 +44,8 @@ async function topMenuHeight() {
 
 describe("main content size", function () {
   configureSpec()
+  let torrent: Torrent | undefined
+  const trackerUrl = "http://tracker-one.test:6969/announce"
 
   before(async function () {
     await browser.electron.execute((electron) => {
@@ -48,6 +53,15 @@ describe("main content size", function () {
       if (!window) throw new Error("Electron app window not found")
       window.setSize(1600, 900)
     })
+    if (getTestFixture().client.features.torrentDetails && getTestFixture().client.features.torrentTrackers) {
+      const filename = await createTorrentFile(getTestFixture().tracker, { fileSize: 100_000, trackerUrls: [trackerUrl] })
+      torrent = await this.app.uploadTorrent({ filename })
+      await torrent.waitForExist()
+    }
+  })
+
+  after(async function () {
+    if (torrent && await torrent.isExisting()) await torrent.delete()
   })
 
   it("uses the screenshot column order and concise headings by default", async function () {
@@ -87,7 +101,7 @@ describe("main content size", function () {
   })
 
   for (const theme of DECK_THEME_ORDER) {
-    it(`applies content sizing to the ${DECK_THEME_TITLES[theme]} theme`, async function () {
+    it(`keeps content sizing and detail columns readable in ${DECK_THEME_TITLES[theme]}`, async function () {
       // The sidebar stays unscaled, so WebDriver can click it reliably even
       // where its reported coordinates for zoomed toolbar buttons differ.
       const settings = $("#page-settings")
@@ -118,6 +132,19 @@ describe("main content size", function () {
       assert.isAtMost(ip.x + ip.width, rail.x + rail.width + 1, `${theme}: IP inside rail`)
       assert.isAtLeast(disk.y, rail.y, `${theme}: disk below rail top`)
       assert.isAtMost(disk.y + disk.height, rail.y + rail.height + 1, `${theme}: disk inside rail height`)
+
+      // Reuse the theme sweep instead of opening Settings another 38 times.
+      if (torrent) {
+        const panel = await torrent.openDetailsPanel()
+        try {
+          await torrent.openDetailsTab("trackers")
+          await eventually(() => panel.$("[data-role='torrent-details-trackers']").getText()).contains(trackerUrl)
+          assert.isAbove((await bounds("#torrentDetailsTrackersTable thead th[data-col='url']")).width, 250, `${theme}: readable URL column`)
+          assert.isAbove((await bounds("#torrentDetailsTrackersTable thead th[data-col='status']")).width, 80, `${theme}: readable status column`)
+        } finally {
+          await torrent.closeDetailsPanel()
+        }
+      }
 
       assert.equal(await scale(), .8, theme)
       const sidebarWidth = (await bounds("torrent-sidebar")).width

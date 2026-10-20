@@ -1,12 +1,12 @@
 import fs from "node:fs"
 import { $, browser } from "@wdio/globals"
+import { Key } from "webdriverio"
 import parseTorrent from "parse-torrent"
 import * as e2e from "../../e2e"
 import { eventually } from "../../e2e/eventually"
 import { dragVisibleElement, visibleBounds } from "../../e2e/geometry"
 import { configureSpec, formatBytes, getTestFixture, requireFeature } from "../../framework/fixture"
 import { createTorrentFile } from "../../torrent"
-import { DECK_THEME_ORDER, DECK_THEME_TITLES } from "../../../src/shared/deck-themes"
 
 const tracker = getTestFixture().tracker
 const trackerUrls = [
@@ -172,10 +172,14 @@ describe("torrent details", function () {
       const start = (await visibleBounds(urlHeader)).x
       await browser.saveScreenshot("/tmp/torrent-deck-readable-right-details.png")
       await scroller.click({ x: 20, y: 120 })
-      await browser.keys(["ArrowRight", "ArrowRight", "ArrowRight", "ArrowRight"])
+      for (let press = 0; press < 4; press++) await browser.keys("ArrowRight")
       await eventually(async () => (await visibleBounds(urlHeader)).x)
         .satisfies("scroll horizontally to additional tracker columns", x => x < start - 20)
-      await browser.keys(Array.from({ length: 80 }, () => "ArrowRight"))
+      // keys([key, key, ...]) holds repeated keys down before releasing them;
+      // Linux does not turn those repeated keydowns into distinct scrolls.
+      const arrows = browser.action("key")
+      for (let press = 0; press < 80; press++) arrows.down(Key.ArrowRight).up(Key.ArrowRight).pause(20)
+      await arrows.perform()
       await eventually(async () => {
         const actions = await visibleBounds("#torrentDetailsTrackersTable tbody .torrent-details-tracker-actions")
         return actions.x + actions.width
@@ -195,36 +199,6 @@ describe("torrent details", function () {
       await torrent.closeDetailsPanel()
     }
   })
-
-  // Separate cases give each theme its own deadline on slower CI renderers.
-  for (const theme of DECK_THEME_ORDER) {
-    it(`preserves readable tracker columns in ${DECK_THEME_TITLES[theme]}`, async function () {
-      this.timeout(90_000)
-      if (getTestFixture().client.features.torrentTrackers !== true) return this.skip()
-      const chooseTheme = async (choiceTheme: typeof DECK_THEME_ORDER[number]) => {
-        await this.app.openSettings()
-        await this.app.settingsGotoTab("general")
-        const choice = $(`button[aria-label='Choose ${DECK_THEME_TITLES[choiceTheme]} theme']`)
-        await choice.scrollIntoView({ block: "center", inline: "nearest" })
-        await choice.click()
-        await this.app.settingsSave()
-        await this.app.torrentsPageIsVisible()
-      }
-      await chooseTheme(theme)
-      const panel = await torrent.openDetailsPanel()
-      try {
-        await torrent.openDetailsTab("trackers")
-        await eventually(() => panel.$("[data-role='torrent-details-trackers']").getText()).contains(trackerUrls[0])
-        ;(await visibleBounds("#torrentDetailsTrackersTable thead th[data-col='url']")).width
-          .should.be.above(250, `${theme}: readable URL column`)
-        ;(await visibleBounds("#torrentDetailsTrackersTable thead th[data-col='status']")).width
-          .should.be.above(80, `${theme}: readable status column`)
-      } finally {
-        await torrent.closeDetailsPanel()
-        if (theme === DECK_THEME_ORDER[DECK_THEME_ORDER.length - 1]) await chooseTheme("darkhand")
-      }
-    })
-  }
 
   it("shows expected torrent file information in the files tab", async function () {
     this.timeout(60 * 1000)
