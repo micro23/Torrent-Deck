@@ -75,6 +75,12 @@ export function normalizeConnectionError(error: unknown): BittorrentConnectionEr
     if (message.includes("stale bittorrent connection")) {
         return connectionError("cancelled", details)
     }
+    if (details.codes.has("DELUGE_SESSION_EXPIRED")) {
+        return {
+            ...connectionError("authentication", details),
+            message: "Deluge did not accept the login session. Check your computer's date and time, then reconnect.",
+        }
+    }
     if ([...details.codes].some((code) => TLS_CODES.has(code))
         || /self[- ]signed certificate|certificate (has expired|is not yet valid)|unable to verify.*certificate|hostname.*certificate/.test(message)) {
         return connectionError("tls", details)

@@ -116,6 +116,23 @@ export class DelugeRuntime implements BittorrentRuntime {
 
     private requestOptions: Record<string, any> = {}
 
+    private acceptSessionCookies(response: any) {
+        const serverTime = Date.parse(response?.headers?.date)
+        const skew = Date.now() - serverTime
+        const headers = response?.headers?.["set-cookie"]
+        const jar = this.requestOptions.jar
+        if (!Number.isFinite(skew) || Math.abs(skew) < 60_000 || !Array.isArray(headers) || !jar) return
+
+        // Deluge sends an absolute Expires date. Interpret its lifetime using the
+        // server's Date header so a fast local clock does not discard a new login.
+        for (const header of headers) {
+            const cookie = request.cookie(header)
+            if (!cookie || cookie.maxAge != null || !(cookie.expires instanceof Date)) continue
+            cookie.expires = new Date(cookie.expires.getTime() + skew)
+            jar.setCookie(cookie, this.rpcUrl, { ignoreError: true })
+        }
+    }
+
     private supportsLabels = false
 
     private downloadLocation: string | null = null
@@ -168,6 +185,8 @@ export class DelugeRuntime implements BittorrentRuntime {
                 return
             }
 
+            this.acceptSessionCookies(res)
+
             if (!res || res.statusCode !== 200) {
                 cb(new Error("Invalid response from deluge API"))
                 return
@@ -179,7 +198,11 @@ export class DelugeRuntime implements BittorrentRuntime {
             }
 
             if (body.error) {
-                cb(new Error(body.error.message || "Deluge API request failed"))
+                const message = body.error.message || "Deluge API request failed"
+                cb(Object.assign(new Error(message), {
+                    code: /not authenticated/i.test(message) ? "DELUGE_SESSION_EXPIRED" : "DELUGE_RPC_ERROR",
+                    method,
+                }))
                 return
             }
 

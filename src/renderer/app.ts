@@ -180,8 +180,8 @@ torrentApp.directive("sortHeader", SortHeaderDirective.getInstance())
 import { TorrentBodyDirective, TorrentRowDirective } from "@renderer/app/directives/torrent-table/torrent-table.directive"
 torrentApp.directive("torrentBody", TorrentBodyDirective.getInstance())
 torrentApp.directive("torrentRow", TorrentRowDirective.getInstance())
-import { HideBrokenImageDirective } from "@renderer/app/directives/tracker-favicon/tracker-favicon.directive"
-torrentApp.directive("hideBrokenImage", HideBrokenImageDirective.getInstance())
+import { TrackerFaviconDirective } from "@renderer/app/directives/tracker-favicon/tracker-favicon.directive"
+torrentApp.directive("trackerFavicon", TrackerFaviconDirective.getInstance())
 import { TableAutoFitDirective } from "@renderer/app/directives/torrent-table/table-auto-fit.directive"
 torrentApp.directive("rzTable", TableAutoFitDirective.getInstance())
 import { SearchDirective } from "@renderer/app/directives/search/search.directive"

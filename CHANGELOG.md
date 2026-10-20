@@ -1,5 +1,31 @@
 # Changes since the Electorrent fork
 
+## 2.19.17 — consolidated master and upstream updates
+
+- Merge the pending status bar, tracker logo/dashboard and right-side detail fixes into master.
+- Integrate all eight upstream updates, including dependency refreshes and keeping headless upload windows hidden.
+- Verify macOS app/helper signatures, runtime entitlements and both universal architectures inside the release ZIP.
+- Build matching macOS and Windows installers, with ad-hoc macOS signing when Developer ID credentials are unavailable.
+
+## 2.19.16 — visible right-side torrent details
+
+- Anchor Darkhand's right-side details card to the main panel instead of a zero-height wrapper, so its tabs and content remain visible.
+- Check Info, Files, Peers and Trackers while switching an open torrent between bottom and right placement.
+
+## 2.19.15 — tracker logos and WebUI dashboard alignment
+
+- Retry tracker site, recognized site root and cached favicons in the WebUI's order; show a neutral network symbol only if every source fails.
+- Prevent failed images from leaking Chromium's broken-image indicator through theme styling.
+- Keep Darkhand statistics and chart captions above the fixed footer, and size short torrent tables to their contents.
+- Match the WebUI's outline statistics icons, horizontal card layout, transfer-limit captions, active counts and clock labels.
+
+## 2.19.14 — WebUI session status bar
+
+- Match the Deluge Deck footer across all 38 themes: free-space badge, live sync state, DHT nodes, transfer rates and server public IP.
+- Restore the shared theme styling for footer badges and sync indicators, including Terminal's text display.
+- Keep Darkhand's sidebar above its full-width footer so it cannot cover session status.
+- Preserve Deluge login cookies when the computer clock differs from the server.
+
 ## 2.19.13 — Deluge response and tracker reliability
 
 - Reject malformed Deluge replies and snapshots instead of reporting false success or clearing the torrent list.

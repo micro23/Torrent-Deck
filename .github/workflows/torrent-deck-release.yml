@@ -31,6 +31,10 @@ env:
   NODE_VERSION: 22.x
   ELECTRON_IS_DEV: 0
 
+concurrency:
+  group: torrent-deck-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   test:
     if: inputs.build_only != true
@@ -75,19 +79,19 @@ jobs:
     - name: Build web application
       run: npm run build
     - name: Test updater, Deluge, and file handling
-      run: node --test test/unit/github-updater.test.cjs test/unit/torrent-state.test.cjs test/unit/server-origin.test.cjs test/unit/deluge-upload.test.cjs test/unit/torrent-file-association.test.cjs test/unit/torrent-file-opening.test.cjs test/unit/launch-queue.test.cjs test/unit/torrent-drop.test.cjs
+      run: node --test test/unit/github-updater.test.cjs test/unit/torrent-state.test.cjs test/unit/server-origin.test.cjs test/unit/deluge-upload.test.cjs test/unit/deluge-connection.test.cjs test/unit/deluge-tracker-favicon.test.cjs test/unit/torrent-file-association.test.cjs test/unit/torrent-file-opening.test.cjs test/unit/launch-queue.test.cjs test/unit/torrent-drop.test.cjs
     - name: Run tests
       env:
         TEST_CLIENT: ${{ matrix.client }}
         TEST_SPEC: ${{ inputs.spec }}
         ELECTORRENT_TEST_REDUCED_MOTION: "1"
       run: |
-        args=(--client "$TEST_CLIENT" --headless)
+        args=(--client "$TEST_CLIENT" --headless --parallel)
         if [ -n "$TEST_SPEC" ]; then
           args+=(--spec "$TEST_SPEC")
         elif [[ "$GITHUB_REF" == refs/tags/v* || "$GITHUB_EVENT_NAME" == pull_request ]]; then
-          # Validate uploads, columns, and content sizing for PRs/releases; master and schedule run the full suite.
-          args+=(--spec test/specs/standard/torrent-uploads.spec.ts --spec test/specs/standard/torrent-file-inputs.spec.ts --spec test/specs/standard/torrent-column-resize.spec.ts --spec test/specs/standard/content-size.spec.ts)
+          # Validate uploads, headless queues, columns, and content sizing for PRs/releases; master and schedule run the full suite.
+          args+=(--spec test/specs/standard/torrent-uploads.spec.ts --spec test/specs/standard/torrent-file-inputs.spec.ts --spec test/specs/standard/torrent-column-resize.spec.ts --spec test/specs/standard/torrent-columns.spec.ts --spec test/specs/standard/upload-queue.spec.ts --spec test/specs/standard/content-size.spec.ts --spec test/specs/standard/dashboard-alignment.spec.ts --spec test/specs/standard/torrent-details.spec.ts)
         fi
         xvfb-run -a --server-args="-screen 0 1600x1200x24" -- npm test -- "${args[@]}"
 
@@ -96,7 +100,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest, windows-latest]
+        os: [macos-15-intel, windows-latest]
 
     runs-on: ${{ matrix.os }}
 
@@ -125,7 +129,7 @@ jobs:
     - name: Build application
       run: npm run build
     - name: Test native file paths, launch queue, and updater
-      run: node --test test/unit/github-updater.test.cjs test/unit/torrent-file-opening.test.cjs test/unit/torrent-file-association.test.cjs test/unit/launch-queue.test.cjs test/unit/torrent-drop.test.cjs
+      run: node --test test/unit/github-updater.test.cjs test/unit/deluge-connection.test.cjs test/unit/torrent-file-opening.test.cjs test/unit/torrent-file-association.test.cjs test/unit/launch-queue.test.cjs test/unit/torrent-drop.test.cjs
     - name: Verify release version
       if: startsWith(github.ref, 'refs/tags/v')
       shell: bash
@@ -166,7 +170,7 @@ jobs:
           echo "available=true" >> "$GITHUB_OUTPUT"
         else
           echo "available=false" >> "$GITHUB_OUTPUT"
-          echo "::notice::Building an unsigned universal macOS ZIP because signing and notarization credentials are not configured."
+          echo "::notice::Building an ad-hoc signed universal macOS ZIP because signing and notarization credentials are not configured."
         fi
     - name: Build signed and notarized universal macOS release
       if: runner.os == 'macOS' && startsWith(github.ref, 'refs/tags/v') && steps.macos_signing.outputs.available == 'true'
@@ -177,11 +181,12 @@ jobs:
         APPLE_ID: ${{ secrets.APPLE_ID }}
         APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
         APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-    - name: Build unsigned universal macOS release
-      if: runner.os == 'macOS' && startsWith(github.ref, 'refs/tags/v') && steps.macos_signing.outputs.available != 'true'
-      run: npm run dist -- --mac zip --universal --config.mac.notarize=false --config.extraMetadata.manualMacUpdates=true
+    - name: Build ad-hoc signed universal macOS release
+      if: runner.os == 'macOS' && steps.macos_signing.outputs.available != 'true'
+      run: npm run dist -- --mac zip --universal --config.mac.identity=- --config.mac.notarize=false --config.extraMetadata.manualMacUpdates=true
       env:
         CSC_IDENTITY_AUTO_DISCOVERY: false
+        CSC_FOR_PULL_REQUEST: true
     - name: Verify macOS signature and notarization
       if: runner.os == 'macOS' && startsWith(github.ref, 'refs/tags/v') && steps.macos_signing.outputs.available == 'true'
       shell: bash
@@ -203,7 +208,7 @@ jobs:
           dist/latest*.yml
         if-no-files-found: error
     - name: Upload macOS architecture ZIPs
-      if: runner.os == 'macOS' && startsWith(github.ref, 'refs/tags/v')
+      if: runner.os == 'macOS'
       uses: actions/upload-artifact@v7
       with:
         name: torrent-deck-dist-${{ runner.os }}

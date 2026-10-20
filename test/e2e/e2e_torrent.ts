@@ -376,7 +376,8 @@ export class Torrent {
   }
 
   async openContextMenu(options: Partial<ClickOptions> = { button: "right" }) {
-    const elem = $(this.query)
+    // Scroll the clickable name into view; centering a wide row can hide it.
+    const elem = $(this.query).$("[data-col=decodedName] .torrent-name-content")
     await elem.waitForExist()
     await elem.waitForDisplayed()
     await elem.scrollIntoView({ block: "center", inline: "center" })
@@ -385,7 +386,7 @@ export class Torrent {
     const parentWindow = await browser.getWindowHandle()
     for (let attempt = 0; attempt < 3; attempt++) {
       const existingWindowHandles = new Set(await browser.getWindowHandles())
-      await elem.$("[data-col=decodedName] .torrent-name-content").click(options)
+      await elem.click(options)
       try {
         const contextMenuWindow = await browser.waitUntil(async () => {
           const handles = await browser.getWindowHandles()
