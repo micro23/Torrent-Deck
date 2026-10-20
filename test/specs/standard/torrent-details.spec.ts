@@ -153,6 +153,7 @@ describe("torrent details", function () {
       await torrent.openDetailsTab("peers")
       await panel.$("[data-role='torrent-details-peers']").waitForDisplayed()
       ;(await visibleBounds("[data-role='torrent-details-peers']")).height.should.be.above(100)
+      await panel.$("#torrentDetailsPeersTable thead th[data-col='ip']").waitForDisplayed({ timeout: 30_000 })
       ;(await visibleBounds("#torrentDetailsPeersTable thead th[data-col='ip']")).width.should.be.above(100)
       ;(await visibleBounds("#torrentDetailsPeersTable")).width.should.be.above(body.width + 100)
       await torrent.openDetailsTab("trackers")
@@ -186,41 +187,44 @@ describe("torrent details", function () {
       await eventually(() => panel.$("[data-role='torrent-details-trackers']").getText()).contains(trackerUrls[0])
     } finally {
       await bottom.click()
+      await eventually(async () => {
+        const details = await visibleBounds(".torrent-details-panel")
+        const library = await visibleBounds("#page-torrents .main-content")
+        return details.x - library.x
+      }).satisfies("finish returning details to the bottom", gap => Math.abs(gap) < 2)
       await torrent.closeDetailsPanel()
     }
   })
 
-  it("preserves readable tracker columns across every theme", async function () {
-    this.timeout(300_000)
-    if (getTestFixture().client.features.torrentTrackers !== true) return this.skip()
-    const chooseTheme = async (theme: typeof DECK_THEME_ORDER[number]) => {
-      await this.app.openSettings()
-      await this.app.settingsGotoTab("general")
-      const choice = $(`button[aria-label='Choose ${DECK_THEME_TITLES[theme]} theme']`)
-      await choice.scrollIntoView({ block: "center", inline: "nearest" })
-      await choice.click()
-      await this.app.settingsSave()
-      await this.app.torrentsPageIsVisible()
-    }
-    try {
-      for (const theme of DECK_THEME_ORDER) {
-        await chooseTheme(theme)
-        const panel = await torrent.openDetailsPanel()
-        try {
-          await torrent.openDetailsTab("trackers")
-          await eventually(() => panel.$("[data-role='torrent-details-trackers']").getText()).contains(trackerUrls[0])
-          ;(await visibleBounds("#torrentDetailsTrackersTable thead th[data-col='url']")).width
-            .should.be.above(250, `${theme}: readable URL column`)
-          ;(await visibleBounds("#torrentDetailsTrackersTable thead th[data-col='status']")).width
-            .should.be.above(80, `${theme}: readable status column`)
-        } finally {
-          await torrent.closeDetailsPanel()
-        }
+  // Separate cases give each theme its own deadline on slower CI renderers.
+  for (const theme of DECK_THEME_ORDER) {
+    it(`preserves readable tracker columns in ${DECK_THEME_TITLES[theme]}`, async function () {
+      this.timeout(90_000)
+      if (getTestFixture().client.features.torrentTrackers !== true) return this.skip()
+      const chooseTheme = async (choiceTheme: typeof DECK_THEME_ORDER[number]) => {
+        await this.app.openSettings()
+        await this.app.settingsGotoTab("general")
+        const choice = $(`button[aria-label='Choose ${DECK_THEME_TITLES[choiceTheme]} theme']`)
+        await choice.scrollIntoView({ block: "center", inline: "nearest" })
+        await choice.click()
+        await this.app.settingsSave()
+        await this.app.torrentsPageIsVisible()
       }
-    } finally {
-      await chooseTheme("darkhand")
-    }
-  })
+      await chooseTheme(theme)
+      const panel = await torrent.openDetailsPanel()
+      try {
+        await torrent.openDetailsTab("trackers")
+        await eventually(() => panel.$("[data-role='torrent-details-trackers']").getText()).contains(trackerUrls[0])
+        ;(await visibleBounds("#torrentDetailsTrackersTable thead th[data-col='url']")).width
+          .should.be.above(250, `${theme}: readable URL column`)
+        ;(await visibleBounds("#torrentDetailsTrackersTable thead th[data-col='status']")).width
+          .should.be.above(80, `${theme}: readable status column`)
+      } finally {
+        await torrent.closeDetailsPanel()
+        if (theme === DECK_THEME_ORDER[DECK_THEME_ORDER.length - 1]) await chooseTheme("darkhand")
+      }
+    })
+  }
 
   it("shows expected torrent file information in the files tab", async function () {
     this.timeout(60 * 1000)
