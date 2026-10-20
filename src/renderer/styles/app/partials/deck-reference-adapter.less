@@ -237,6 +237,9 @@ html[data-theme="darkhand"][data-theme] body #page-torrents .dh-overview .dh-sta
 html[data-theme="darkhand"][data-theme] body #page-torrents .dh-switches button { cursor:pointer; }
 html[data-theme="darkhand"][data-theme] body #page-torrents .torrent-details-panel { border:1px solid var(--line); border-radius:18px; margin-bottom:16px; background:var(--surface); }
 @media(min-width:1101px) {
+    // The generic panel-child stacking rule makes this empty host relative.
+    // Let the absolute details card use the full-height main panel instead.
+    html[data-theme="darkhand"][data-theme] body #page-torrents.dh-details-right torrent-details-panel { position:static; }
     html[data-theme="darkhand"][data-theme] body #page-torrents.dh-details-right:has(.torrent-details-panel) .main-content,
     html[data-theme="darkhand"][data-theme] body #page-torrents.dh-details-right:has(.torrent-details-panel) .dh-overview { margin-right:calc(var(--deck-details-width,400px) + 16px) !important; }
     html[data-theme="darkhand"][data-theme] body #page-torrents.dh-details-right .torrent-details-panel {

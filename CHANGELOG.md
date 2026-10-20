@@ -1,5 +1,10 @@
 # Changes since the Electorrent fork
 
+## 2.19.16 — visible right-side torrent details
+
+- Anchor Darkhand's right-side details card to the main panel instead of a zero-height wrapper, so its tabs and content remain visible.
+- Check Info, Files, Peers and Trackers while switching an open torrent between bottom and right placement.
+
 ## 2.19.15 — tracker logos and WebUI dashboard alignment
 
 - Retry tracker site, recognized site root and cached favicons in the WebUI's order; show a neutral network symbol only if every source fails.
