@@ -52,28 +52,31 @@ export class ModalDirective implements IDirective {
 
         controller.attachModal(modal)
 
-        const onKeyDown = (event: JQuery.KeyDownEvent) => {
+        const onKeyDown = (event: KeyboardEvent) => {
             if (event.key !== "Escape" || !modal.modal("is active")) {
                 return
             }
 
             // Escape belongs to the active child control before its dialog.
-            // Fomantic may already have consumed the key to hide a dropdown.
-            if (event.isDefaultPrevented()) return
+            // Capture before Fomantic's focused-dropdown handler can consume an
+            // Escape even when its menu is already closed (notably on Linux).
+            if (event.defaultPrevented) return
             const activeModal = $(".ui.modal.active").last()[0]
             if (activeModal && activeModal !== element[0]) return
             const dropdowns = modal.find(".ui.dropdown.active")
             if (dropdowns.length) {
                 event.preventDefault()
+                event.stopPropagation()
                 dropdowns.dropdown("hide")
                 return
             }
 
             event.preventDefault()
+            event.stopPropagation()
             modal.modal("hide")
         }
 
-        $(document).on("keydown", onKeyDown)
+        document.addEventListener("keydown", onKeyDown, true)
 
         modal.modal({
             onDeny: () => {
@@ -106,7 +109,7 @@ export class ModalDirective implements IDirective {
             duration: 150
         });
         scope.$on("$destroy", function() {
-            $(document).off("keydown", onKeyDown)
+            document.removeEventListener("keydown", onKeyDown, true)
             element.remove();
         });
     }

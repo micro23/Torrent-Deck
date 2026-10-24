@@ -64,15 +64,22 @@ describe("torrent labels", function () {
     await this.app.uploadTorrent({ filename, askUploadOptions: true })
     const modal = $("#uploadTorrentModal")
     await waitForModalOpen(modal)
-    const dropdown = modal.$("#upload-options-saved-location")
-    await dropdown.waitForClickable()
-    await dropdown.click()
-    await eventually(() => dropdown.getAttribute("class")).contains("active")
-    await browser.keys("Escape")
-    await eventually(() => dropdown.getAttribute("class")).satisfies("close the child menu", value => !value.split(/\s+/).includes("active"))
-    ;(await modal.isDisplayed()).should.equal(true)
-    await browser.keys("Escape")
-    await waitForModalClose(modal)
+    try {
+      const dropdown = modal.$("#upload-options-saved-location")
+      await dropdown.waitForClickable()
+      await dropdown.click()
+      await eventually(() => dropdown.getAttribute("class")).contains("active")
+      await browser.keys("Escape")
+      await eventually(() => dropdown.getAttribute("class")).satisfies("close the child menu", value => !value.split(/\s+/).includes("active"))
+      ;(await modal.isDisplayed()).should.equal(true)
+      await browser.keys("Escape")
+      await waitForModalClose(modal)
+    } finally {
+      if (await modal.isDisplayed()) {
+        await modal.$(".close.icon").click()
+        await waitForModalClose(modal)
+      }
+    }
   })
 
   it("filters torrents without a label", async function () {
