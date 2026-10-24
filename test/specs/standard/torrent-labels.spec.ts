@@ -1,6 +1,9 @@
 import * as e2e from "../../e2e"
 import { configureSpec, createUniqueLabel, getTestFixture, requireFeature } from "../../framework/fixture"
 import { createSlowTorrentFile, createTorrentFile } from "../../torrent"
+import { $, browser } from "@wdio/globals"
+import { eventually } from "../../e2e/eventually"
+import { waitForModalClose, waitForModalOpen } from "../../e2e/modal"
 
 const tracker = getTestFixture().tracker
 const noLabelFilter = "__electorrent_no_label__"
@@ -54,6 +57,22 @@ describe("torrent labels", function () {
     labels.should.include(firstLabel)
     labels.should.include(secondLabel)
     labels.should.have.length(initialLabelCount + 2)
+  })
+
+  it("dismisses an upload dropdown before closing its dialog with Escape", async function () {
+    const filename = await createTorrentFile(tracker, { fileSize: 1000 })
+    await this.app.uploadTorrent({ filename, askUploadOptions: true })
+    const modal = $("#uploadTorrentModal")
+    await waitForModalOpen(modal)
+    const dropdown = modal.$("#upload-options-saved-location")
+    await dropdown.waitForClickable()
+    await dropdown.click()
+    await eventually(() => dropdown.getAttribute("class")).contains("active")
+    await browser.keys("Escape")
+    await eventually(() => dropdown.getAttribute("class")).satisfies("close the child menu", value => !value.split(/\s+/).includes("active"))
+    ;(await modal.isDisplayed()).should.equal(true)
+    await browser.keys("Escape")
+    await waitForModalClose(modal)
   })
 
   it("filters torrents without a label", async function () {

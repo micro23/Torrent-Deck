@@ -65,6 +65,7 @@ const DELUGE_TORRENT_DETAIL_FIELDS = [
     "num_pieces",
     "owner",
     "piece_length",
+    "prioritize_first_last",
     "prioritize_first_last_pieces",
     "private",
     "remove_at_ratio",
@@ -219,7 +220,7 @@ export class DelugeRuntime implements BittorrentRuntime {
         const options: Record<string, any> = {
             file_priorities: [],
             add_paused: false,
-            compact_allocation: false,
+            pre_allocate_storage: false,
             max_connections: -1,
             max_download_speed: -1,
             max_upload_slots: -1,
@@ -421,7 +422,7 @@ export class DelugeRuntime implements BittorrentRuntime {
                 moveCompleted: details.move_completed ?? null,
                 moveCompletedPath: details.move_completed_path ?? null,
                 nextAnnounce: details.next_announce ?? null,
-                prioritizeFirstLast: details.prioritize_first_last_pieces ?? null,
+                prioritizeFirstLast: details.prioritize_first_last ?? details.prioritize_first_last_pieces ?? null,
                 sequentialDownload: details.sequential_download ?? null,
                 shared: details.shared ?? null,
                 removeAtRatio: details.remove_at_ratio ?? null,
@@ -583,11 +584,22 @@ export class DelugeRuntime implements BittorrentRuntime {
     }
 
     remove(hashes: string[]): Promise<void> {
-        return Promise.all(hashes.map((hash) => defer((done) => this.rpc("core.remove_torrent", [hash, false], done)))).then(() => undefined)
+        return this.removeTorrents(hashes, false)
     }
 
     removeAndDelete(hashes: string[]): Promise<void> {
-        return Promise.all(hashes.map((hash) => defer((done) => this.rpc("core.remove_torrent", [hash, true], done)))).then(() => undefined)
+        return this.removeTorrents(hashes, true)
+    }
+
+    private async removeTorrents(hashes: string[], deleteData: boolean): Promise<void> {
+        await Promise.all(hashes.map(async (hash) => {
+            const removed = await defer((done) => this.rpc("core.remove_torrent", [hash, deleteData], done))
+            // An acknowledged RPC can still report that this torrent was not
+            // removed. Reject the action so its caller reports that failure.
+            if (removed !== true) {
+                throw new Error(`Deluge did not remove torrent ${hash}. The torrent may already be missing or the server refused removal.`)
+            }
+        }))
     }
 
     queueUp(hashes: string[]): Promise<void> {

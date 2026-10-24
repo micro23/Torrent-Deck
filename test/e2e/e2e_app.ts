@@ -534,7 +534,7 @@ export class App {
   }
 
   async settingsSave() {
-    const saveBtn = $("#page-settings .actions.footer a.positive")
+    const saveBtn = $("#page-settings .actions.footer .positive")
     await saveBtn.waitForDisplayed()
     await saveBtn.waitForClickable()
     await saveBtn.click()

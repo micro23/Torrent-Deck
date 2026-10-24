@@ -492,6 +492,13 @@ export class TorrentsPageController {
             clearDeleteConfirmation();
         };
 
+        function actionErrorMessage(error: unknown) {
+            const message = error && typeof error === "object" && "message" in error ? error.message : null;
+            return typeof message === "string" && message.trim()
+                ? message
+                : "The action could not be performed because the server responded with a faulty reply";
+        }
+
         function runContextAction(action: ((torrents: any[]) => Promise<void>) | undefined, torrents: any[]) {
             if (!action) {
                 return $q.resolve();
@@ -503,7 +510,7 @@ export class TorrentsPageController {
                 })
                 .catch((err: unknown) => {
                     console.error("Context action error", err);
-                    $notify.alert("Invalid action", "The action could not be performed because the server responded with a faulty reply");
+                    $notify.alert("Invalid action", actionErrorMessage(err));
                 });
         }
 
@@ -553,7 +560,7 @@ export class TorrentsPageController {
                 })
                 .catch((err: unknown) => {
                     console.error("Remove torrents error", err);
-                    $notify.alert("Invalid action", "The action could not be performed because the server responded with a faulty reply");
+                    $notify.alert("Invalid action", actionErrorMessage(err));
                 });
         }
 
@@ -836,7 +843,7 @@ export class TorrentsPageController {
                 })
                 .catch((err: unknown) => {
                     console.error("Action error", err);
-                    $notify.alert("Invalid action", "The action could not be performed because the server responded with a faulty reply");
+                    $notify.alert("Invalid action", actionErrorMessage(err));
                 });
         };
 

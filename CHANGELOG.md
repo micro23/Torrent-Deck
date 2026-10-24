@@ -1,5 +1,12 @@
 # Changes since the Electorrent fork
 
+## 2.19.19 — Deluge Deck 1.0.96 fix alignment
+
+- Audit every Deluge Deck 1.0.96 fix and adapt the applicable desktop behavior while preserving its read-only reference checkout.
+- Report refused torrent removal, read first/last-piece priority from the correct status key, and use Deluge's supported allocation option.
+- Protect settings before loading and during saves, keep settings controls reachable after resizing, and dismiss child dropdowns before their parent dialogs.
+- Keep Electorrent upstream fully included and publish matching macOS and Windows installers.
+
 ## 2.19.18 — readable torrent detail tables
 
 - Preserve readable file, peer and tracker column widths in narrow details panels, with keyboard-accessible horizontal scrolling across themes.
