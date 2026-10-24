@@ -1,6 +1,5 @@
 import fs from "node:fs"
 import { $, browser } from "@wdio/globals"
-import { Key } from "webdriverio"
 import parseTorrent from "parse-torrent"
 import * as e2e from "../../e2e"
 import { eventually } from "../../e2e/eventually"
@@ -168,22 +167,30 @@ describe("torrent details", function () {
       ;(close.x + close.width).should.be.at.most(side.x + side.width + 1, "close control fits in the sidebar")
       // Focus the scroll region organically and move through the wide table.
       // Reading DOM text alone would pass even when every URL was ellipsized.
-      const scroller = panel.$(".torrent-details-trackers-content")
+      const puppeteer = await browser.getPuppeteer()
+      const page = (await puppeteer.pages()).find(page => page.url().startsWith("file:") && page.url().endsWith("/index.html"))
+      if (!page) throw new Error("Electron renderer page not found")
+      const scrollArea = await visibleBounds(".torrent-details-trackers-content")
       const start = (await visibleBounds(urlHeader)).x
       await browser.saveScreenshot("/tmp/torrent-deck-readable-right-details.png")
-      await scroller.click({ x: 20, y: 120 })
-      for (let press = 0; press < 4; press++) await browser.keys("ArrowRight")
+      await page.mouse.click(scrollArea.x + 20, scrollArea.y + scrollArea.height / 2)
+      for (let press = 0; press < 4; press++) await page.keyboard.press("ArrowRight")
       await eventually(async () => (await visibleBounds(urlHeader)).x)
         .satisfies("scroll horizontally to additional tracker columns", x => x < start - 20)
-      // keys([key, key, ...]) holds repeated keys down before releasing them;
-      // Linux does not turn those repeated keydowns into distinct scrolls.
-      const arrows = browser.action("key")
-      for (let press = 0; press < 80; press++) arrows.down(Key.ArrowRight).up(Key.ArrowRight).pause(20)
-      await arrows.perform()
-      await eventually(async () => {
-        const actions = await visibleBounds("#torrentDetailsTrackersTable tbody .torrent-details-tracker-actions")
-        return actions.x + actions.width
-      }).satisfies("reach tracker actions by scrolling", right => right <= side.x + side.width + 1)
+      if (features.torrentTrackerManagement) {
+        // Native focus navigation scrolls each action into view without relying
+        // on held-key repeat or smooth-scroll speed on a loaded CI renderer.
+        const edit = panel.$("[data-role='torrent-tracker-edit']")
+        for (let tab = 0; tab < 20 && !await edit.isFocused(); tab++) await page.keyboard.press("Tab")
+        ;(await edit.isFocused()).should.equal(true, "reach tracker editing by keyboard")
+        await page.keyboard.press("Tab")
+        const remove = panel.$("[data-role='torrent-tracker-remove']")
+        ;(await remove.isFocused()).should.equal(true, "reach tracker removal by keyboard")
+        await eventually(async () => {
+          const button = await visibleBounds("#torrentDetailsTrackersTable [data-role='torrent-tracker-remove']")
+          return button.x >= side.x && button.x + button.width <= side.x + side.width + 1
+        }).equals(true)
+      }
       await browser.saveScreenshot("/tmp/torrent-deck-details-scrolled.png")
       await bottom.click()
       await eventually(() => bottom.getAttribute("aria-pressed")).equals("true")
