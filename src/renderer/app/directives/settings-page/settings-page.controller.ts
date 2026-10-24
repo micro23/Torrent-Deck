@@ -40,6 +40,9 @@ export class SettingsPageController {
         $scope.chromeVersion = "";
         $scope.electronVersion = "";
         $scope.connecting = false;
+        $scope.settingsReady = false;
+        $scope.saving = false;
+        $scope.settingsError = "";
         $scope.page = "general";
         $scope.layoutSortOptions = {
             handle: ".sort.handle",
@@ -62,11 +65,15 @@ export class SettingsPageController {
                 linux: () => meta.isLinux,
             };
             return loadAllSettings();
+        }).catch(() => {
+            $scope.settingsError = "Unable to load your settings. Restart Torrent-Deck before making changes.";
+            $scope.settingsReady = false;
         }).finally(() => {
             $scope.$applyAsync();
         });
 
         function loadAllSettings(serverId?: string) {
+            $scope.settingsReady = false;
             $scope.settings = settingsService.getAllSettingsCopy();
             loadServerReference(serverId);
 
@@ -76,6 +83,7 @@ export class SettingsPageController {
                 $scope.general = {
                     magnets: magnets,
                 };
+                $scope.settingsReady = true;
             });
         }
 
@@ -97,7 +105,12 @@ export class SettingsPageController {
         }
 
         $scope.$on("setting:load", (_event: unknown, serverId?: string) => {
-            Promise.resolve(loadPromise).then(() => loadAllSettings(serverId)).finally(() => {
+            Promise.resolve(loadPromise).then(() => {
+                if (!$scope.settingsError) return loadAllSettings(serverId);
+            }).catch(() => {
+                $scope.settingsReady = false;
+                $scope.settingsError = "Unable to load your settings. Restart Torrent-Deck before making changes.";
+            }).finally(() => {
                 $scope.$applyAsync();
             });
         });
@@ -168,6 +181,8 @@ export class SettingsPageController {
         }
 
         $scope.save = () => {
+            if (!$scope.settingsReady || $scope.saving) return;
+            $scope.saving = true;
             $scope.$emit("loading", "Applying Settings");
 
             Promise.resolve().then(() => {
@@ -182,6 +197,7 @@ export class SettingsPageController {
                 $scope.$emit("hide:loading");
                 console.error("Settings Error", err);
             }).finally(() => {
+                $scope.saving = false;
                 $scope.connecting = false;
                 $scope.$applyAsync();
             });

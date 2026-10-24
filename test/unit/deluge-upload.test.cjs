@@ -56,6 +56,44 @@ test('Deluge rejection is not treated as a successful upload', async () => {
   await assert.rejects(api.uploadTorrent(new Uint8Array([1]), 'bad.torrent'), /did not add the torrent/)
 })
 
+test('Deluge removal rejects negative and malformed acknowledgments for both removal modes', async () => {
+  for (const result of [false, null, [], {}, 'true']) {
+    for (const method of ['remove', 'removeAndDelete']) {
+      await assert.rejects(runtime(result).api[method](['rejected-hash']), /did not remove torrent rejected-hash/)
+    }
+  }
+  for (const method of ['remove', 'removeAndDelete']) {
+    const { api, calls } = runtime(true)
+    await api[method](['one', 'two'])
+    assert.equal(calls.length, 2)
+    assert.equal(calls[0].body.params[1], method === 'removeAndDelete')
+  }
+})
+
+test('Deluge reports a failed member of a multi-torrent removal', async () => {
+  const { api, calls } = runtime(null, null, ({ params }) => ({ result: params[0] !== 'refused' }))
+  await assert.rejects(api.remove(['removed', 'refused']), /did not remove torrent refused/)
+  assert.equal(calls.length, 2)
+})
+
+test('Deluge reads first/last-piece status separately from the write option name', async () => {
+  for (const value of [true, false]) {
+    const { api, calls } = runtime({ prioritize_first_last: value, prioritize_first_last_pieces: !value })
+    assert.equal((await api.getTorrentDetails('hash')).info.prioritizeFirstLast, value)
+    assert.ok(calls[0].body.params[1].includes('prioritize_first_last'))
+  }
+  assert.equal((await runtime({ prioritize_first_last_pieces: true }).api.getTorrentDetails('hash')).info.prioritizeFirstLast, true)
+})
+
+test('Deluge URL uploads use the supported sparse allocation option', async () => {
+  const { api, calls } = runtime(null, null, ({ method }) => ({ result:
+    method === 'web.download_torrent_from_url' ? '/tmp/upload.torrent' : method === 'web.get_torrent_info' ? { info_hash: 'hash' } : true }))
+  await api.addTorrentUrl('https://example.test/file.torrent')
+  const options = calls.find(call => call.body.method === 'web.add_torrents').body.params[0][0].options
+  assert.equal(options.pre_allocate_storage, false)
+  assert.equal('compact_allocation' in options, false)
+})
+
 test('Deluge reports the server add error', async () => {
   const { api } = runtime(null, { message: 'Permission denied in download directory' })
   await assert.rejects(api.uploadTorrent(new Uint8Array([1]), 'example.torrent'), /Permission denied/)

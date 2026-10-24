@@ -1,5 +1,6 @@
 import chai from "chai"
-import { $ } from "@wdio/globals"
+import { $, browser } from "@wdio/globals"
+import { visibleBounds } from "../../e2e/geometry"
 import * as e2e from "../../e2e"
 import { eventually } from "../../e2e/eventually"
 import { configureSpec, getTestFixture } from "../../framework/fixture"
@@ -23,6 +24,39 @@ describe("settings", function () {
 
   it("settings page is visible", async function () {
     await this.app.settingsPageIsVisible()
+  })
+
+  it("keeps settings pages and save controls reachable after resizing", async function () {
+    this.timeout(90_000)
+    const resize = async (width: number, height: number) => {
+      const size = await browser.electron.execute((electron, width, height) => {
+        const window = electron.BrowserWindow.getAllWindows().find(window => window.webContents.getURL().endsWith("/index.html"))
+        if (!window) throw new Error("App window not found")
+        window.setSize(width, height)
+        return window.getContentBounds()
+      }, width, height)
+      await eventually(async () => (await visibleBounds(".app-content")).width).equals(size.width)
+    }
+    try {
+      for (const [width, height] of [[1280, 900], [900, 700], [640, 600]]) {
+        await resize(width, height)
+        for (const tab of ["connection", "layout", "general"]) {
+          await this.app.settingsGotoTab(tab)
+          const page = await visibleBounds("#page-settings")
+          const viewport = await visibleBounds(".app-content")
+          assert.isAtMost(page.y + page.height, viewport.y + viewport.height + 1, "settings fit below the native title bar")
+          const save = await visibleBounds("#page-settings .actions.footer .positive")
+          const cancel = await visibleBounds("#page-settings .actions.footer .deny")
+          assert.isAtMost(save.x + save.width, page.x + page.width, `${tab}: save inside viewport`)
+          assert.isAtMost(save.y + save.height, page.y + page.height, `${tab}: save above bottom edge`)
+          assert.isAtLeast(cancel.x, page.x, `${tab}: cancel inside viewport`)
+          await $("#page-settings .actions.footer .positive").waitForEnabled()
+        }
+      }
+      await browser.saveScreenshot("/tmp/torrent-deck-settings-compact.png")
+    } finally {
+      await resize(1600, 1000)
+    }
   })
 
   it("general settings tab is shown by default", async function () {

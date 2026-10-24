@@ -79,7 +79,7 @@ jobs:
     - name: Build web application
       run: npm run build
     - name: Test updater, Deluge, and file handling
-      run: node --test test/unit/github-updater.test.cjs test/unit/torrent-state.test.cjs test/unit/server-origin.test.cjs test/unit/deluge-upload.test.cjs test/unit/deluge-connection.test.cjs test/unit/deluge-tracker-favicon.test.cjs test/unit/torrent-file-association.test.cjs test/unit/torrent-file-opening.test.cjs test/unit/launch-queue.test.cjs test/unit/torrent-drop.test.cjs
+      run: node --test test/unit/github-updater.test.cjs test/unit/torrent-state.test.cjs test/unit/server-origin.test.cjs test/unit/deluge-upload.test.cjs test/unit/settings-readiness.test.cjs test/unit/modal-escape.test.cjs test/unit/deluge-connection.test.cjs test/unit/deluge-tracker-favicon.test.cjs test/unit/torrent-file-association.test.cjs test/unit/torrent-file-opening.test.cjs test/unit/launch-queue.test.cjs test/unit/torrent-drop.test.cjs
     - name: Run tests
       env:
         TEST_CLIENT: ${{ matrix.client }}
@@ -91,7 +91,7 @@ jobs:
           args+=(--spec "$TEST_SPEC")
         elif [[ "$GITHUB_REF" == refs/tags/v* || "$GITHUB_EVENT_NAME" == pull_request ]]; then
           # Validate uploads, headless queues, columns, and content sizing for PRs/releases; master and schedule run the full suite.
-          args+=(--spec test/specs/standard/torrent-uploads.spec.ts --spec test/specs/standard/torrent-file-inputs.spec.ts --spec test/specs/standard/torrent-column-resize.spec.ts --spec test/specs/standard/torrent-columns.spec.ts --spec test/specs/standard/upload-queue.spec.ts --spec test/specs/standard/content-size.spec.ts --spec test/specs/standard/dashboard-alignment.spec.ts --spec test/specs/standard/torrent-details.spec.ts)
+          args+=(--spec test/specs/standard/torrent-uploads.spec.ts --spec test/specs/standard/torrent-file-inputs.spec.ts --spec test/specs/standard/torrent-column-resize.spec.ts --spec test/specs/standard/torrent-columns.spec.ts --spec test/specs/standard/upload-queue.spec.ts --spec test/specs/standard/content-size.spec.ts --spec test/specs/standard/dashboard-alignment.spec.ts --spec test/specs/standard/torrent-details.spec.ts --spec test/specs/standard/settings.spec.ts --spec test/specs/standard/torrent-labels.spec.ts --spec test/specs/standard/torrent-actions.spec.ts)
         fi
         xvfb-run -a --server-args="-screen 0 1600x1200x24" -- npm test -- "${args[@]}"
 
@@ -129,7 +129,7 @@ jobs:
     - name: Build application
       run: npm run build
     - name: Test native file paths, launch queue, and updater
-      run: node --test test/unit/github-updater.test.cjs test/unit/deluge-connection.test.cjs test/unit/torrent-file-opening.test.cjs test/unit/torrent-file-association.test.cjs test/unit/launch-queue.test.cjs test/unit/torrent-drop.test.cjs
+      run: node --test test/unit/github-updater.test.cjs test/unit/deluge-connection.test.cjs test/unit/settings-readiness.test.cjs test/unit/modal-escape.test.cjs test/unit/torrent-file-opening.test.cjs test/unit/torrent-file-association.test.cjs test/unit/launch-queue.test.cjs test/unit/torrent-drop.test.cjs
     - name: Verify release version
       if: startsWith(github.ref, 'refs/tags/v')
       shell: bash

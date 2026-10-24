@@ -29,7 +29,9 @@
             </ul>
         </div>
         <div class="container">
-            <div class="content" ng-switch="page">
+            <div class="content">
+              <div class="ui negative message" role="alert" ng-if="settingsError">{{ settingsError }}</div>
+              <fieldset class="settings-fields" ng-switch="page" ng-disabled="!settingsReady || saving" ng-attr-inert="{{ !settingsReady || saving ? true : undefined }}">
                 <div ng-switch-when="general" id="page-settings-general">
                     <settings-general
                         settings="settings"
@@ -75,16 +77,17 @@
                         electron-version="electronVersion">
                     </settings-about>
                 </div>
+              </fieldset>
             </div>
             <div class="actions footer">
                 <a class="ui deny right labeled icon button" ng-click="close()">
                     Cancel
                     <i class="cancel icon"></i>
                 </a>
-                <a class="ui positive right labeled icon button" ng-click="save()">
+                <button type="button" class="ui positive right labeled icon button" ng-disabled="!settingsReady || saving" ng-click="save()">
                     Save
                     <i class="checkmark icon"></i>
-                </a>
+                </button>
             </div>
         </div>
     </div>

@@ -512,9 +512,11 @@ export class App {
       return
     }
 
-    const headerSettingsButton = $('button[data-role="show-settings"]')
-    const settingsButtonSelector = await headerSettingsButton.isDisplayed() && await headerSettingsButton.isClickable()
-      ? 'button[data-role="show-settings"]' : ".terminal-preferences"
+    // The sidebar is unscaled. ChromeDriver on Linux can offset clicks on
+    // the CSS-zoomed toolbar, even when its gear reports itself clickable.
+    const sidebarSettingsButton = $(".terminal-preferences")
+    const settingsButtonSelector = await sidebarSettingsButton.isDisplayed() && await sidebarSettingsButton.isClickable()
+      ? ".terminal-preferences" : 'button[data-role="show-settings"]'
     const settingsButton = $(settingsButtonSelector)
     await settingsButton.waitForDisplayed()
     await settingsButton.waitForClickable()
@@ -534,7 +536,7 @@ export class App {
   }
 
   async settingsSave() {
-    const saveBtn = $("#page-settings .actions.footer a.positive")
+    const saveBtn = $("#page-settings .actions.footer .positive")
     await saveBtn.waitForDisplayed()
     await saveBtn.waitForClickable()
     await saveBtn.click()
