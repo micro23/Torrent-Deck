@@ -22,6 +22,7 @@ export interface TorrentDetailsTrackersTabScope extends IScope {
   columns: TorrentDetailsTrackerColumn[]
   sortedTrackers: BittorrentTorrentDetailsTracker[]
   loading: boolean
+  saving: boolean
   loaded: boolean
   error: string | null
   mutationError: string | null
@@ -62,6 +63,7 @@ export class TorrentDetailsTrackersTabController {
     this.scope.trackers = []
     this.scope.sortedTrackers = []
     this.scope.loading = false
+    this.scope.saving = false
     this.scope.loaded = false
     this.scope.error = null
     this.scope.mutationError = null
@@ -102,6 +104,7 @@ export class TorrentDetailsTrackersTabController {
   }
 
   openAddTracker() {
+    if (this.scope.saving) return
     this.trackerToEdit = undefined
     this.scope.trackerModalTitle = "Add Tracker"
     this.scope.trackerModalAction = "Add"
@@ -111,6 +114,7 @@ export class TorrentDetailsTrackersTabController {
   }
 
   openEditTracker(tracker: BittorrentTorrentDetailsTracker) {
+    if (this.scope.saving) return
     this.trackerToEdit = tracker
     this.scope.trackerModalTitle = "Edit Tracker"
     this.scope.trackerModalAction = "Save"
@@ -120,6 +124,7 @@ export class TorrentDetailsTrackersTabController {
   }
 
   openRemoveTracker(tracker: BittorrentTorrentDetailsTracker) {
+    if (this.scope.saving) return
     this.trackerToRemove = tracker
     this.scope.mutationError = null
     this.scope.removeModalRef?.showModal()
@@ -138,12 +143,20 @@ export class TorrentDetailsTrackersTabController {
   }
 
   async saveTracker() {
+    if (this.scope.saving) return
     const torrent = this.scope.torrent
     const client = this.rootScope.$btclient
     const url = this.scope.trackerUrl?.trim()
-    if (!torrent || !client || !url) return
+    if (!torrent || !client || !this.canManageTrackers()) return
     try {
-      this.scope.loading = true
+      const parsed = new URL(url || "")
+      if (!/^(?:https?|udp|wss?):$/.test(parsed.protocol) || !parsed.hostname) throw new Error("Invalid tracker URL")
+    } catch {
+      this.scope.mutationError = "Enter a valid HTTP, HTTPS, UDP, WS or WSS tracker URL."
+      return
+    }
+    try {
+      this.scope.saving = true
       this.scope.mutationError = null
       if (this.trackerToEdit) await client.editTorrentTracker(torrent, this.trackerToEdit.url, url)
       else await client.addTorrentTracker(torrent, url)
@@ -152,18 +165,19 @@ export class TorrentDetailsTrackersTabController {
     } catch (err: any) {
       this.scope.mutationError = err?.message || "Failed to save tracker"
     } finally {
-      this.scope.loading = false
+      this.scope.saving = false
       this.scope.$evalAsync()
     }
   }
 
   async removeTracker() {
+    if (this.scope.saving) return
     const torrent = this.scope.torrent
     const client = this.rootScope.$btclient
     const tracker = this.trackerToRemove
-    if (!torrent || !client || !tracker) return
+    if (!torrent || !client || !tracker || !this.canManageTracker(tracker)) return
     try {
-      this.scope.loading = true
+      this.scope.saving = true
       this.scope.mutationError = null
       await client.removeTorrentTracker(torrent, tracker.url)
       this.closeRemoveModal()
@@ -171,7 +185,7 @@ export class TorrentDetailsTrackersTabController {
     } catch (err: any) {
       this.scope.mutationError = err?.message || "Failed to remove tracker"
     } finally {
-      this.scope.loading = false
+      this.scope.saving = false
       this.scope.$evalAsync()
     }
   }
