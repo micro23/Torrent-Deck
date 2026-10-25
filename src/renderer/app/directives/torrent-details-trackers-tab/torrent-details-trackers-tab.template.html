@@ -71,14 +71,14 @@
     <form id="torrent-tracker-form" class="ui form" ng-submit="ctl.saveTracker()">
       <div class="field">
         <label for="torrent-tracker-url">Tracker URL</label>
-        <input id="torrent-tracker-url" data-role="torrent-tracker-url" type="text" ng-model="ctl.scope.trackerUrl" placeholder="https://tracker.example/announce">
+        <input id="torrent-tracker-url" data-role="torrent-tracker-url" type="text" ng-model="ctl.scope.trackerUrl" ng-disabled="ctl.scope.saving" aria-describedby="torrent-tracker-error" placeholder="https://tracker.example/announce">
       </div>
-      <div class="ui negative message" ng-if="ctl.scope.mutationError"><p>{{ ctl.scope.mutationError }}</p></div>
+      <div id="torrent-tracker-error" class="ui negative message" role="alert" ng-if="ctl.scope.mutationError"><p>{{ ctl.scope.mutationError }}</p></div>
     </form>
   </div>
   <div class="actions">
     <button type="button" class="ui black button" ng-click="ctl.closeTrackerModal()">Cancel</button>
-    <button type="submit" form="torrent-tracker-form" class="ui green right labeled icon button" data-role="torrent-tracker-save" ng-disabled="ctl.scope.loading || !ctl.scope.trackerUrl">{{ ctl.scope.trackerModalAction }}<i class="checkmark icon"></i></button>
+    <button type="submit" form="torrent-tracker-form" class="ui green right labeled icon button" ng-class="{ loading: ctl.scope.saving }" data-role="torrent-tracker-save" ng-disabled="ctl.scope.saving || !ctl.scope.trackerUrl.trim()">{{ ctl.scope.trackerModalAction }}<i class="checkmark icon"></i></button>
   </div>
 </modal>
 
@@ -87,11 +87,11 @@
   <div class="header">Remove Tracker</div>
   <div class="content">
     <p>Remove tracker <strong>{{ ctl.removeTrackerUrl() }}</strong>?</p>
-    <div class="ui negative message" ng-if="ctl.scope.mutationError"><p>{{ ctl.scope.mutationError }}</p></div>
+    <div class="ui negative message" role="alert" ng-if="ctl.scope.mutationError"><p>{{ ctl.scope.mutationError }}</p></div>
   </div>
   <div class="actions">
     <button type="button" class="ui black deny button" ng-click="ctl.closeRemoveModal()">Cancel</button>
-    <button type="button" class="ui red right labeled icon button approve" data-role="torrent-tracker-remove-confirm" ng-click="ctl.removeTracker()" ng-disabled="ctl.scope.loading">Remove<i class="trash icon"></i></button>
+    <button type="button" class="ui red right labeled icon button" ng-class="{ loading: ctl.scope.saving }" data-role="torrent-tracker-remove-confirm" ng-click="ctl.removeTracker()" ng-disabled="ctl.scope.saving">Remove<i class="trash icon"></i></button>
   </div>
 </modal>
 

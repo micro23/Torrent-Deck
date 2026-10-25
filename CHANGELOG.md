@@ -1,5 +1,12 @@
 # Changes since the Electorrent fork
 
+## 2.19.20 — reliable tracker dialogs
+
+- Prevent background refreshes and repeated submissions from sending duplicate tracker changes.
+- Keep failed tracker removal dialogs open with the server error so they can be retried.
+- Validate tracker addresses before sending them, preserve failed edits, and show accessible inline errors.
+- Publish matching universal macOS and Windows installers.
+
 ## 2.19.19 — Deluge Deck 1.0.96 fix alignment
 
 - Audit every Deluge Deck 1.0.96 fix and adapt the applicable desktop behavior while preserving its read-only reference checkout.

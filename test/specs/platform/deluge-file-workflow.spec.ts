@@ -8,6 +8,7 @@ import { $, browser } from "@wdio/globals"
 import { Torrent } from "../../e2e"
 import { waitForModalClose, waitForModalOpen } from "../../e2e/modal"
 import { configureSpec, getTestFixture } from "../../framework/fixture"
+import { eventually } from "../../e2e/eventually"
 
 const assert: Chai.AssertStatic = chai.assert
 
@@ -15,6 +16,9 @@ describe("native Deluge file workflow", function () {
   configureSpec({ login: false })
   const torrents: Record<string, Record<string, unknown>> = {}
   let directory: string
+  const trackerUrl = "https://tracker.example/announce"
+  let trackerWrites = 0
+  let failNextTrackerWrite = false
   // A local Deluge protocol fixture keeps native Windows/macOS checks independent
   // of Docker. Production Deluge code still performs every HTTP and IPC call.
   const server = http.createServer(async (request, response) => {
@@ -41,11 +45,22 @@ describe("native Deluge file workflow", function () {
             download_payload_rate: 1024, upload_payload_rate: 0, ratio: 0, eta: 60,
             num_peers: 1, total_peers: 1, num_seeds: 1, total_seeds: 1,
             queue: 0, time_added: Date.now() / 1000, save_path: directory,
+            trackers: [{ url: trackerUrl, tier: 0 }],
           }
           result = parsed.infoHash
           break
         }
         case "core.remove_torrent": delete torrents[rpc.params[0]]; result = true; break
+        case "web.get_torrent_status": result = torrents[rpc.params[0]]; break
+        case "core.set_torrent_trackers":
+          trackerWrites++
+          if (failNextTrackerWrite) {
+            failNextTrackerWrite = false
+            throw new Error("Tracker update refused")
+          }
+          torrents[rpc.params[0]].trackers = rpc.params[1]
+          result = null
+          break
         default: throw new Error(`Unexpected Deluge RPC: ${rpc.method}`)
       }
       response.writeHead(200, { "Content-Type": "application/json" })
@@ -180,4 +195,40 @@ describe("native Deluge file workflow", function () {
       }
     })
   }
+
+  it("keeps a refused tracker removal open and allows retry", async function () {
+    const name = "Native tracker retry"
+    const filename = path.join(directory, `${name}.torrent`)
+    fs.writeFileSync(filename, Buffer.concat([
+      Buffer.from(`d4:infod6:lengthi1e4:name${Buffer.byteLength(name)}:${name}12:piece lengthi16384e6:pieces20:`),
+      Buffer.alloc(20, 0x5a), Buffer.from("ee"),
+    ]))
+    const torrent = await this.app.uploadTorrent({ filename })
+    await torrent.waitForExist()
+    const panel = await torrent.openDetailsPanel()
+    try {
+      await torrent.openDetailsTab("trackers")
+      const row = panel.$(`tr[data-tracker-url='${trackerUrl}']`)
+      await row.waitForDisplayed()
+      const remove = row.$("[data-role='torrent-tracker-remove']")
+      await remove.scrollIntoView({ block: "center", inline: "center" })
+      await remove.click()
+      const modal = $("#torrent-tracker-remove-modal")
+      await waitForModalOpen(modal)
+      failNextTrackerWrite = true
+      const confirm = modal.$("[data-role='torrent-tracker-remove-confirm']")
+      await confirm.click()
+      await eventually(() => modal.$("[role='alert']").getText()).contains("Tracker update refused")
+      assert.isTrue(await modal.isDisplayed(), "server failure must keep the confirmation visible")
+      assert.equal(trackerWrites, 1)
+      assert.isTrue(await row.isExisting(), "failed removal must retain the tracker")
+      await confirm.click()
+      await waitForModalClose(modal)
+      await eventually(() => row.isExisting()).equals(false)
+      assert.equal(trackerWrites, 2, "retry must send one new request")
+    } finally {
+      await torrent.closeDetailsPanel()
+      if (await torrent.isExisting()) await torrent.delete()
+    }
+  })
 })
