@@ -276,8 +276,8 @@ describe("torrent details", function () {
 
     const reopenedTrackersTable = reopenedPanel.$("[data-role='torrent-details-trackers-table']")
     await reopenedTrackersTable.waitForDisplayed({ timeout: 30_000 })
-    const reopenedWidth = (await reopenedTrackersTable.$("thead th:first-child").getSize()).width
-    reopenedWidth.should.be.closeTo(resizedWidth, 1)
+    await eventually(async () => (await reopenedTrackersTable.$("thead th:first-child").getSize()).width)
+      .satisfies("restore fitted tracker width after layout", width => Math.abs(width - resizedWidth) <= 1)
 
     await torrent.closeDetailsPanel()
   })
@@ -311,8 +311,8 @@ describe("torrent details", function () {
 
     const reopenedActionsHeader = reopenedPanel.$("[data-role='torrent-details-trackers-table'] thead th.torrent-details-tracker-actions")
     await reopenedActionsHeader.waitForDisplayed({ timeout: 30_000 })
-    const reopenedWidth = (await reopenedActionsHeader.getSize()).width
-    reopenedWidth.should.be.closeTo(resizedWidth, 1)
+    await eventually(async () => (await reopenedActionsHeader.getSize()).width)
+      .satisfies("restore fitted actions width after layout", width => Math.abs(width - resizedWidth) <= 1)
 
     await torrent.closeDetailsPanel()
   })
@@ -372,8 +372,8 @@ describe("torrent details", function () {
     const reopenedFilesTable = reopenedPanel.$("[data-role='torrent-details-files-table']")
     await reopenedFilesTable.waitForDisplayed({ timeout: 30_000 })
     const reopenedHeaders = await reopenedFilesTable.$$("thead th")
-    const reopenedWidth = (await reopenedHeaders[1].getSize()).width
-    reopenedWidth.should.be.closeTo(resizedWidth, 1)
+    await eventually(async () => (await reopenedHeaders[1].getSize()).width)
+      .satisfies("restore fitted file width after layout", width => Math.abs(width - resizedWidth) <= 1)
 
     await torrent.closeDetailsPanel()
   })
