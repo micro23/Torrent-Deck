@@ -1,5 +1,9 @@
 # Changes since the Electorrent fork
 
+## 2.19.23 — full-width left-aligned torrent names
+
+- Left-align wrapped torrent names, use all remaining cell width, and reduce space around the row controls.
+
 ## 2.19.22 — readable State column
 
 - Protect State with a readable width even when saved preferences or dragging request a tiny column. Keep the table fitted without horizontal scrolling.
