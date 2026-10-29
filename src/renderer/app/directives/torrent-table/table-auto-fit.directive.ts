@@ -80,7 +80,7 @@ export class TableAutoFitDirective implements IDirective {
             if (signature !== nextSignature) {
                 signature = nextSignature
                 try { preferred = JSON.parse(localStorage.getItem(signature) || '[]') } catch { preferred = [] }
-                if (preferred.length !== columns.length || preferred.some(width => !Number.isFinite(width) || width <= 0)) {
+                if (!Array.isArray(preferred) || preferred.length !== columns.length || preferred.some(width => !Number.isFinite(width) || width <= 0)) {
                     preferred = columns.map(col => /name|torrent|url|path/i.test(col.dataset.col || col.textContent || '') ? 280 : col.querySelector('input') ? 30 : 90)
                 }
             }
@@ -88,7 +88,9 @@ export class TableAutoFitDirective implements IDirective {
             table.style.setProperty('min-width', '0', 'important')
             const available = table.parentElement.clientWidth
             const fixed = columns.map(col => col.querySelector('input[type="checkbox"]') ? Math.min(30, available / columns.length) : 0)
-            const flexible = fitColumnWidths(preferred.filter((_width, index) => !fixed[index]), Math.max(0, available - fixed.reduce((sum, width) => sum + width, 0)))
+            const flexibleColumns = columns.filter((_column, index) => !fixed[index])
+            const minimum = flexibleColumns.map(column => column.dataset.col === 'statusMessage' ? 108 : 32)
+            const flexible = fitColumnWidths(preferred.filter((_width, index) => !fixed[index]), Math.max(0, available - fixed.reduce((sum, width) => sum + width, 0)), minimum)
             let flexibleIndex = 0
             columns.forEach((column, index) => column.style.setProperty('width', `${(fixed[index] || flexible[flexibleIndex++]) / available * 100}%`, 'important'))
             for (const row of Array.from(table.tBodies[0]?.rows || [])) {

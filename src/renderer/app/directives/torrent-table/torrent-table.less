@@ -82,3 +82,8 @@ html[data-theme] body .ui.table.fit-columns thead th.sortdown {
     font-size: 11px;
     letter-spacing: normal !important;
 }
+// State is a short categorical value, not a long path to wrap letter by letter.
+html[data-theme] body #torrentTable.fit-columns [data-col='statusMessage'] {
+    white-space: nowrap !important;
+    overflow-wrap: normal;
+}
