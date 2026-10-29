@@ -1,5 +1,11 @@
 # Changes since the Electorrent fork
 
+## 2.19.21 — columns that fit the available pane
+
+- Redistribute visible column widths to fill the available pane, including saved oversized preferences.
+- Keep resizing within the pane and wrap long values vertically.
+- Align the WebUI and desktop fitting policy across all themes.
+
 ## 2.19.20 — reliable tracker dialogs
 
 - Prevent background refreshes and repeated submissions from sending duplicate tracker changes.

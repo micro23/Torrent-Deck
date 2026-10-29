@@ -81,7 +81,7 @@ torrent-details-panel {
         overscroll-behavior: contain;
 
         > .ui.torrent.table {
-            min-width: 1400px;
+            min-width: 0;
 
             thead th { width: 120px; position: sticky; top: 0; z-index: 1; }
             thead th[data-col='url'] { width: 360px; }
@@ -106,7 +106,7 @@ torrent-details-panel {
     }
 
     .torrent-details-files-content > .ui.torrent.table {
-        min-width: 900px;
+        min-width: 0;
         thead th { width: auto; }
         thead th[data-col='name'],
         thead th[data-col='path'] { width: 360px; }
@@ -122,7 +122,7 @@ torrent-details-panel {
     }
 
     @container (max-width: 600px) {
-        .torrent-details-scroll-hint { display: block; }
+        .torrent-details-scroll-hint { display: none; }
         // A pinned actions column would cover part of the URL at this width.
         .torrent-details-table-content > .ui.torrent.table .torrent-details-tracker-actions {
             position: static;
@@ -131,6 +131,29 @@ torrent-details-panel {
         }
         .torrent-details-table-content > .ui.torrent.table thead .torrent-details-tracker-actions {
             position: sticky;
+        }
+    }
+
+    // A narrow sidebar presents every field vertically instead of squeezing
+    // eleven columns into unreadable slivers or moving actions off-screen.
+    @container (max-width: 850px) {
+        .torrent-details-table-content > .ui.table.fit-columns {
+            thead tr { display: flex; flex-wrap: wrap; }
+            thead th { flex: 1 1 90px; position: static; width: auto !important; }
+            .rz-handle { display: none; }
+            tbody, tbody tr { display: block; width: 100%; }
+            tbody tr { padding: .5rem; border-bottom: 1px solid @borderColor; }
+            tbody td {
+                display: grid;
+                grid-template-columns: minmax(70px, 32%) minmax(0, 1fr);
+                gap: .5rem;
+                width: auto !important;
+                padding: .3rem !important;
+                text-align: left;
+            }
+            tbody td::before { content: attr(data-label); color: @mutedTextColor; font-size: .9em; }
+            .torrent-details-tracker-actions { display: flex; flex-wrap: wrap; }
+            .torrent-details-tracker-actions::before { flex: 0 0 32%; }
         }
     }
 
