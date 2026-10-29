@@ -45,6 +45,23 @@ describe("torrent column resizing", function () {
       const resized = await target!.boundingBox()
       assert.isBelow(resized!.width, 150)
       assert.isAbove(resized!.width, 40)
+      const state = await page.$("#torrentTable th[data-col='statusMessage']")
+      const stateHandle = await page.$("#torrentTable th[data-col='statusMessage'] .rz-handle")
+      const stateGrip = await stateHandle?.boundingBox()
+      if (!stateGrip) throw new Error("State resize handle not visible")
+      await page.mouse.move(stateGrip.x + stateGrip.width / 2, stateGrip.y + stateGrip.height / 2)
+      await page.mouse.down()
+      await page.mouse.move(stateGrip.x - 500, stateGrip.y + stateGrip.height / 2, { steps: 10 })
+      await page.mouse.up()
+      assert.isAtLeast((await state!.boundingBox())!.width, 80, "State cannot collapse to one letter per line")
+      const stateCell = $("#torrentTable tbody td[data-col='statusMessage']")
+      assert.equal((await stateCell.getCSSProperty("white-space")).value, "nowrap")
+      const overflow = await page.evaluate(() => {
+        const content = document.querySelector('#page-torrents .main-content')!
+        return content.scrollWidth - content.clientWidth
+      })
+      assert.isAtMost(overflow, 1, "readability floors preserve fit without horizontal scrolling")
+      await browser.saveScreenshot("/tmp/torrent-state-width-fixed.png")
       assert.equal(await torrent.isExisting(), true)
     } finally {
       if (await torrent.isExisting()) await torrent.delete()

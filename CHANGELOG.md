@@ -1,5 +1,9 @@
 # Changes since the Electorrent fork
 
+## 2.19.22 — readable State column
+
+- Protect State with a readable width even when saved preferences or dragging request a tiny column. Keep the table fitted without horizontal scrolling.
+
 ## 2.19.21 — columns that fit the available pane
 
 - Redistribute visible column widths to fill the available pane, including saved oversized preferences.
