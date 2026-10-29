@@ -62,6 +62,19 @@ describe("torrent column resizing", function () {
       })
       assert.isAtMost(overflow, 1, "readability floors preserve fit without horizontal scrolling")
       await browser.saveScreenshot("/tmp/torrent-state-width-fixed.png")
+      const nameLayout = await page.evaluate(() => {
+        const name = document.querySelector<HTMLElement>('#torrentTable tbody .torrent-name-content')!
+        const row = name.parentElement!
+        const box = name.getBoundingClientRect()
+        const range = document.createRange()
+        range.selectNodeContents(name)
+        return {
+          rightGap: row.getBoundingClientRect().right - box.right,
+          indents: Array.from(range.getClientRects()).map(line => Math.abs(line.left - box.left)),
+        }
+      })
+      assert.isAtMost(nameLayout.rightGap, 2, "filename uses all width after the controls")
+      assert.isTrue(nameLayout.indents.every(indent => indent <= 1), "wrapped filename lines start at the left edge")
       assert.equal(await torrent.isExisting(), true)
     } finally {
       if (await torrent.isExisting()) await torrent.delete()
