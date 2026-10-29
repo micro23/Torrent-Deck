@@ -74,7 +74,7 @@ describe("torrent column resizing", function () {
         }
       })
       assert.isAtMost(nameLayout.rightGap, 2, "filename uses all width after the controls")
-      assert.isTrue(nameLayout.indents.every(indent => indent <= 1), "wrapped filename lines start at the left edge")
+      assert.equal(nameLayout.indents.every(indent => indent <= 1), true, "wrapped filename lines start at the left edge")
       assert.equal(await torrent.isExisting(), true)
     } finally {
       if (await torrent.isExisting()) await torrent.delete()
