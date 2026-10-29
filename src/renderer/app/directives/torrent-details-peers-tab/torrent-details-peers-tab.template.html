@@ -8,14 +8,14 @@
       <p>{{ ctl.scope.error }}</p>
     </div>
   </div>
-  <div class="torrent-details-peers-content torrent-details-table-content" tabindex="0" role="region" aria-label="Torrent peers, scroll to see all columns" ng-if="!ctl.scope.error && (!ctl.scope.loading || ctl.scope.loaded)">
+  <div class="torrent-details-peers-content torrent-details-table-content" tabindex="0" role="region" aria-label="Torrent peers, all fields fit this panel" ng-if="!ctl.scope.error && (!ctl.scope.loading || ctl.scope.loaded)">
     <table
       id="torrentDetailsPeersTable"
       class="ui compact single line unstackable fixed torrent resize table torrent-details-table"
       data-role="torrent-details-peers-table"
       rz-table
       rz-profile="ctl.scope.resizeProfile"
-      rz-mode="ctl.scope.resizeMode"
+      rz-mode="'OverflowResizer'"
       rz-options="ctl.scope.tableResizeOptions"
       rz-container=".torrent-details-peers-content"
       columns="ctl.scope.columns"

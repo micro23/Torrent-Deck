@@ -112,3 +112,7 @@ This is a desktop adaptation of the actual theme source, not a claim that every
 pixel of the React web application is identical. Web-only authentication,
 Deluge plugin packaging and mobile navigation are not substituted for
 Electorrent's desktop connection/client architecture.
+
+## October 29, 2026 — shared fit policy
+
+The user explicitly authorized improving both projects. Torrent-Deck 2.19.21 and Deluge Deck 1.0.99 use proportional width preferences constrained to the available pane. Desktop narrow detail tables reflow into labeled fields; main tables retain enabled columns and wrap values. Existing explicit column visibility choices remain intact.

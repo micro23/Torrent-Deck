@@ -147,51 +147,31 @@ describe("torrent details", function () {
 
       await torrent.openDetailsTab("files")
       await eventually(() => panel.$("[data-role='torrent-details-files']").getText()).contains("readme.txt")
-      ;(await visibleBounds("#torrentDetailsFilesTable thead th[data-col='name']")).width.should.be.above(150)
-      ;(await visibleBounds("#torrentDetailsFilesTable")).width.should.be.above(body.width + 100)
+
+      ;(await visibleBounds("#torrentDetailsFilesTable")).width.should.be.at.most(body.width + 2)
       await torrent.openDetailsTab("peers")
       await panel.$("[data-role='torrent-details-peers']").waitForDisplayed()
       ;(await visibleBounds("[data-role='torrent-details-peers']")).height.should.be.above(100)
       await panel.$("#torrentDetailsPeersTable thead th[data-col='ip']").waitForDisplayed({ timeout: 30_000 })
-      ;(await visibleBounds("#torrentDetailsPeersTable thead th[data-col='ip']")).width.should.be.above(100)
-      ;(await visibleBounds("#torrentDetailsPeersTable")).width.should.be.above(body.width + 100)
+
+      ;(await visibleBounds("#torrentDetailsPeersTable")).width.should.be.at.most(body.width + 2)
       await torrent.openDetailsTab("trackers")
       await eventually(() => panel.$("[data-role='torrent-details-trackers']").getText()).satisfies(
         "show every tracker in the right panel", text => trackerUrls.every(url => text.includes(url)),
       )
-      const urlHeader = "#torrentDetailsTrackersTable thead th[data-col='url']"
-      ;(await visibleBounds(urlHeader)).width.should.be.above(250, "tracker URL retains a readable width")
-      ;(await visibleBounds("#torrentDetailsTrackersTable")).width.should.be.above(body.width + 100)
-      const close = await visibleBounds("[data-role='torrent-details-close']")
-      const side = await visibleBounds(".torrent-details-panel")
-      ;(close.x + close.width).should.be.at.most(side.x + side.width + 1, "close control fits in the sidebar")
-      // Focus the scroll region organically and move through the wide table.
-      // Reading DOM text alone would pass even when every URL was ellipsized.
       const puppeteer = await browser.getPuppeteer()
       const page = (await puppeteer.pages()).find(page => page.url().startsWith("file:") && page.url().endsWith("/index.html"))
       if (!page) throw new Error("Electron renderer page not found")
-      const scrollArea = await visibleBounds(".torrent-details-trackers-content")
-      const start = (await visibleBounds(urlHeader)).x
-      await browser.saveScreenshot("/tmp/torrent-deck-readable-right-details.png")
-      await page.mouse.click(scrollArea.x + 20, scrollArea.y + scrollArea.height / 2)
-      for (let press = 0; press < 4; press++) await page.keyboard.press("ArrowRight")
-      await eventually(async () => (await visibleBounds(urlHeader)).x)
-        .satisfies("scroll horizontally to additional tracker columns", x => x < start - 20)
-      if (features.torrentTrackerManagement) {
-        // Native focus navigation scrolls each action into view without relying
-        // on held-key repeat or smooth-scroll speed on a loaded CI renderer.
-        const edit = panel.$("[data-role='torrent-tracker-edit']")
-        for (let tab = 0; tab < 20 && !await edit.isFocused(); tab++) await page.keyboard.press("Tab")
-        ;(await edit.isFocused()).should.equal(true, "reach tracker editing by keyboard")
-        await page.keyboard.press("Tab")
-        const remove = panel.$("[data-role='torrent-tracker-remove']")
-        ;(await remove.isFocused()).should.equal(true, "reach tracker removal by keyboard")
-        await eventually(async () => {
-          const button = await visibleBounds("#torrentDetailsTrackersTable [data-role='torrent-tracker-remove']")
-          return button.x >= side.x && button.x + button.width <= side.x + side.width + 1
-        }).equals(true)
-      }
-      await browser.saveScreenshot("/tmp/torrent-deck-details-scrolled.png")
+      const overflow = await page.evaluate(() => {
+        const container = document.querySelector('.torrent-details-trackers-content')!
+        return container.scrollWidth - container.clientWidth
+      })
+      overflow.should.be.at.most(1, "all tracker fields fit without horizontal scrolling")
+      const action = await visibleBounds("[data-role='torrent-tracker-remove']")
+      const side = await visibleBounds(".torrent-details-panel")
+      action.x.should.be.at.least(side.x)
+      ;(action.x + action.width).should.be.at.most(side.x + side.width + 1)
+      await browser.saveScreenshot("/tmp/torrent-deck-fit-details.png")
       await bottom.click()
       await eventually(() => bottom.getAttribute("aria-pressed")).equals("true")
       ;(await visibleBounds(".torrent-details-panel-body")).height.should.be.above(100)

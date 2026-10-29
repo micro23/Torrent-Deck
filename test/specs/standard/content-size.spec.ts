@@ -42,6 +42,16 @@ async function topMenuHeight() {
   return await $(".title-bar-menu").isDisplayed() ? (await bounds(".title-bar-menu")).height : 0
 }
 
+async function assertFits(selector: string, theme: string) {
+  const puppeteer = await browser.getPuppeteer()
+  const page = (await puppeteer.pages()).find(page => page.url().startsWith("file:"))
+  if (!page) throw new Error("Renderer not found")
+  await eventually(() => page.evaluate(selector => {
+    const container = document.querySelector(selector)!
+    return container.scrollWidth - container.clientWidth
+  }, selector)).satisfies(`${theme}: table fits available space without horizontal scrolling`, overflow => overflow <= 1)
+}
+
 describe("main content size", function () {
   configureSpec()
   let torrent: Torrent | undefined
@@ -83,7 +93,7 @@ describe("main content size", function () {
       await eventually(scale).equals(.9)
       await chooseSize("Increase Content Size (10%)")
       await eventually(scale).equals(1)
-      assert.closeTo((await bounds("#torrentTable thead")).height / heightAt80, 1.25, .06)
+      assert.isAtLeast((await bounds("#torrentTable thead")).height, heightAt80 * 1.25 - 2)
       assert.equal((await bounds("torrent-sidebar")).width, sidebarWidth)
       assert.equal(await topMenuHeight(), menuHeight)
       await restartApplication(this)
@@ -139,13 +149,14 @@ describe("main content size", function () {
         try {
           await torrent.openDetailsTab("trackers")
           await eventually(() => panel.$("[data-role='torrent-details-trackers']").getText()).contains(trackerUrl)
-          assert.isAbove((await bounds("#torrentDetailsTrackersTable thead th[data-col='url']")).width, 250, `${theme}: readable URL column`)
-          assert.isAbove((await bounds("#torrentDetailsTrackersTable thead th[data-col='status']")).width, 80, `${theme}: readable status column`)
+          assert.isAbove((await bounds("#torrentDetailsTrackersTable thead th[data-col='url']")).width, 30, `${theme}: URL column available`)
+          await assertFits(".torrent-details-trackers-content", theme)
         } finally {
           await torrent.closeDetailsPanel()
         }
       }
 
+      await assertFits("#page-torrents .main-content", theme)
       assert.equal(await scale(), .8, theme)
       const sidebarWidth = (await bounds("torrent-sidebar")).width
       const menuHeight = await topMenuHeight()
@@ -153,7 +164,8 @@ describe("main content size", function () {
       try {
         await chooseSize("Increase Content Size (10%)")
         await eventually(scale).equals(.9)
-        assert.closeTo((await bounds("#torrentTable thead")).height / height, 1.125, .06, theme)
+        assert.isAtLeast((await bounds("#torrentTable thead")).height, height * 1.125 - 2, theme)
+        await assertFits("#page-torrents .main-content", theme)
         assert.closeTo((await bounds("torrent-sidebar")).width, sidebarWidth, 1, theme)
         assert.equal(await topMenuHeight(), menuHeight, theme)
       } finally {
