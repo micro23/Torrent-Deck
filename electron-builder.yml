@@ -59,6 +59,7 @@ linux:
   target:
     - snap
     - AppImage
+    - tar.gz
     - deb
     - rpm
 extraFiles:
