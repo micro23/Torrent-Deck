@@ -9,6 +9,10 @@ on:
   pull_request:
   workflow_dispatch:
     inputs:
+      linux_only:
+        description: 'Backfill Linux packages for an already validated macOS/Windows release'
+        type: boolean
+        default: false
       build_only:
         description: 'Build installers only when the same application changes have already passed client validation'
         type: boolean
@@ -37,7 +41,7 @@ concurrency:
 
 jobs:
   test:
-    if: inputs.build_only != true
+    if: inputs.build_only != true && inputs.linux_only != true
     runs-on: ubuntu-latest
 
     strategy:
@@ -96,7 +100,7 @@ jobs:
         xvfb-run -a --server-args="-screen 0 1600x1200x24" -- npm test -- "${args[@]}"
 
   build:
-    if: inputs.clients == ''
+    if: inputs.clients == '' && inputs.linux_only != true
     strategy:
       fail-fast: false
       matrix:
@@ -215,9 +219,54 @@ jobs:
         path: dist/*.zip
         if-no-files-found: error
 
+  linux:
+    if: inputs.clients == ''
+    runs-on: ubuntu-22.04
+    steps:
+    - name: Checkout source code
+      uses: actions/checkout@v7
+    - name: Install Linux runtime and test dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y xvfb libnss3 libdbus-1-3 libatk1.0-0 libatk-bridge2.0-0 libcups2 libgtk-3-0 libgbm1 libasound2
+    - name: Install nodejs
+      uses: actions/setup-node@v7
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: npm
+    - name: Install npm dependencies
+      run: npm install
+    - name: Lint
+      run: npm run lint
+    - name: Build application
+      run: npm run build
+    - name: Test Deluge, updater, and Linux file associations
+      run: node --test test/unit/fit-column-widths.test.cjs test/unit/github-updater.test.cjs test/unit/deluge-connection.test.cjs test/unit/torrent-file-opening.test.cjs test/unit/torrent-file-association.test.cjs test/unit/launch-queue.test.cjs
+    - name: Build Linux x64 AppImage and portable archive
+      run: npx electron-builder --linux AppImage tar.gz --x64 --publish never
+    - name: Verify Linux packages and checksums
+      run: node scripts/verify-linux-release.mjs
+    - name: Test the extracted AppImage with Deluge
+      run: xvfb-run -a --server-args="-screen 0 1600x1200x24" npm test -- --dist --client deluge:2 --spec test/specs/platform/deluge-file-workflow.spec.ts --headless --force-title-bar-menu
+      env:
+        ELECTORRENT_TEST_BINARY: dist/linux-appimage-check/squashfs-root/torrent-deck
+        ELECTORRENT_TEST_NO_BACKEND: "1"
+        ELECTORRENT_TEST_REDUCED_MOTION: "1"
+    - name: Upload Linux packages and update metadata
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        name: torrent-deck-dist-Linux
+        path: |
+          dist/*.AppImage
+          dist/*.tar.gz
+          dist/latest-linux.yml
+          dist/SHA256SUMS-linux.txt
+        if-no-files-found: error
+
   release:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [test, build]
+    needs: [test, build, linux]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -234,10 +283,14 @@ jobs:
         GH_REPO: micro23/Torrent-Deck
         RELEASE_TAG: ${{ github.ref_name }}
       run: |
-        title="Torrent-Deck ${RELEASE_TAG#v} — macOS and Windows"
+        title="Torrent-Deck ${RELEASE_TAG#v} — macOS, Windows, and Linux"
         test -n "$(find release-assets -maxdepth 1 -name '*.zip' -print -quit)"
         test -n "$(find release-assets -maxdepth 1 -name '*.exe' -print -quit)"
         test -f release-assets/latest.yml
+        test -n "$(find release-assets -maxdepth 1 -name '*.AppImage' -print -quit)"
+        test -n "$(find release-assets -maxdepth 1 -name '*.tar.gz' -print -quit)"
+        test -f release-assets/latest-linux.yml
+        test -f release-assets/SHA256SUMS-linux.txt
         if gh release view "$RELEASE_TAG" --json isDraft > release.json 2>/dev/null; then
           node -e 'if (!require("./release.json").isDraft) throw new Error("Refusing to overwrite a published release")'
         else

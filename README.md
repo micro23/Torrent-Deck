@@ -14,7 +14,7 @@ Torrent-Deck is a desktop remote-control application for managing torrents on cl
 
 ## Download and platform status
 
-Download published installers from [GitHub Releases](https://github.com/micro23/Torrent-Deck/releases). Releases provide macOS packages and a Windows installer. Linux support remains in the shared source and packaging configuration while its release builds are deferred.
+Download published installers from [GitHub Releases](https://github.com/micro23/Torrent-Deck/releases). Releases provide a universal macOS ZIP, Windows installer, and Linux x64 AppImage and portable archive. For Omarchy, see [Linux installation](docs/linux.md).
 
 Universal macOS ZIPs are built for both Intel and Apple Silicon. When signing and notarization credentials are unavailable, the ZIP is unsigned and macOS may block it as damaged; signing is required for normal Gatekeeper-approved launching. Signed macOS releases check GitHub for updates and download the compatible ZIP. Windows checks GitHub and installs approved updates through its NSIS installer. Windows may show a SmartScreen warning because the installer is unsigned.
 
@@ -91,7 +91,7 @@ npm run build
 npm test -- --client deluge:2 --spec test/specs/standard/torrent-uploads.spec.ts --headless
 ```
 
-Client testing currently targets Deluge only. Other client tests require an explicit request. Cross-platform source support is maintained, while Windows and Linux packaging is deferred during macOS refinement. See [docs/github-releases.md](docs/github-releases.md) for release validation.
+Client testing currently targets Deluge only. Other client tests require an explicit request. Shared source and release builds are maintained for macOS, Windows, and Linux. See [docs/github-releases.md](docs/github-releases.md) for release validation.
 
 ## Contributing
 
