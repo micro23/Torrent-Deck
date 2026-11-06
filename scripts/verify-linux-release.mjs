@@ -9,7 +9,8 @@ import yaml from 'js-yaml'
 const version = JSON.parse(fs.readFileSync('package.json', 'utf8')).version
 const dist = path.resolve('dist')
 const stem = `Torrent-Deck-${version}-Linux-x64`
-const image = `${stem}.AppImage`
+// AppImage normalizes the x64 artifact-name macro to x86_64; tar.gz keeps x64.
+const image = `Torrent-Deck-${version}-Linux-x86_64.AppImage`
 const archive = `${stem}.tar.gz`
 const digest = (file, algorithm, encoding) => createHash(algorithm).update(fs.readFileSync(file)).digest(encoding)
 const checkExecutable = file => {

@@ -1,7 +1,7 @@
 # Linux and Omarchy
 
 The Linux release is built for **x86-64** (`uname -m` prints `x86_64`). Download
-`Torrent-Deck-2.19.23-Linux-x64.AppImage` and `SHA256SUMS-linux.txt` from
+`Torrent-Deck-2.19.23-Linux-x86_64.AppImage` and `SHA256SUMS-linux.txt` from
 [release 2.19.23](https://github.com/micro23/Torrent-Deck/releases/tag/v2.19.23).
 
 In the download directory:
@@ -9,9 +9,9 @@ In the download directory:
 ```sh
 grep 'AppImage$' SHA256SUMS-linux.txt | sha256sum -c -
 mkdir -p "$HOME/Applications"
-mv Torrent-Deck-2.19.23-Linux-x64.AppImage "$HOME/Applications/"
-chmod +x "$HOME/Applications/Torrent-Deck-2.19.23-Linux-x64.AppImage"
-"$HOME/Applications/Torrent-Deck-2.19.23-Linux-x64.AppImage"
+mv Torrent-Deck-2.19.23-Linux-x86_64.AppImage "$HOME/Applications/"
+chmod +x "$HOME/Applications/Torrent-Deck-2.19.23-Linux-x86_64.AppImage"
+"$HOME/Applications/Torrent-Deck-2.19.23-Linux-x86_64.AppImage"
 ```
 
 Keep the AppImage in a permanent, writable location so the launcher and in-app

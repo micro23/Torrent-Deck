@@ -253,6 +253,7 @@ jobs:
         ELECTORRENT_TEST_NO_BACKEND: "1"
         ELECTORRENT_TEST_REDUCED_MOTION: "1"
     - name: Upload Linux packages and update metadata
+      if: always()
       uses: actions/upload-artifact@v7
       with:
         name: torrent-deck-dist-Linux
