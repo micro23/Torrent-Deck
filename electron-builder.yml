@@ -52,9 +52,10 @@ linux:
   artifactName: "${productName}-${version}-Linux-${arch}.${ext}"
   icon: build/png
   category: Network;FileTransfer;P2P;
+  mimeTypes:
+    - x-scheme-handler/magnet
   desktop:
     entry:
-      MimeType: application/x-bittorrent;x-scheme-handler/magnet;
       Keywords: p2p;bittorrent;
   target:
     - snap
