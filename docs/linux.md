@@ -38,7 +38,7 @@ download directory:
 ```sh
 grep 'tar.gz$' SHA256SUMS-linux.txt | sha256sum -c -
 mkdir -p "$HOME/Applications/Torrent-Deck-2.19.23"
-tar -xzf Torrent-Deck-2.19.23-Linux-x64.tar.gz -C "$HOME/Applications/Torrent-Deck-2.19.23"
+tar -xzf Torrent-Deck-2.19.23-Linux-x64.tar.gz --strip-components=1 -C "$HOME/Applications/Torrent-Deck-2.19.23"
 "$HOME/Applications/Torrent-Deck-2.19.23/torrent-deck"
 ```
 
