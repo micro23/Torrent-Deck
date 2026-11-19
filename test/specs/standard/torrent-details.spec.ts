@@ -172,6 +172,32 @@ describe("torrent details", function () {
       action.x.should.be.at.least(side.x)
       ;(action.x + action.width).should.be.at.most(side.x + side.width + 1)
       await browser.saveScreenshot("/tmp/torrent-deck-fit-details.png")
+      // Shrink both panes rather than only checking the wide desktop layout.
+      await page.setViewport({ width: 1180, height: 900 })
+      try {
+        await eventually(() => page.evaluate(() => {
+          const library = document.querySelector<HTMLElement>("#page-torrents .main-content")!
+          const panel = document.querySelector<HTMLElement>(".torrent-details-trackers-content")!
+          const table = library.querySelector("#torrentTable")!
+          const headers = [...table.querySelectorAll("thead th")]
+          const tableBounds = table.getBoundingClientRect()
+          const panelBounds = panel.getBoundingClientRect()
+          return innerWidth === 1180 && panelBounds.left >= tableBounds.right - 1
+            && library.scrollWidth <= library.clientWidth + 1
+            && panel.scrollWidth <= panel.clientWidth + 1
+            && headers.length > 8 && headers.every(header => header.getBoundingClientRect().width >= 12)
+        })).equals(true)
+        const progress = await page.$("#torrentTable th[data-col='percent']")
+        const divider = await progress?.$(".rz-handle")
+        if (!progress || !divider) throw new Error("Progress column divider unavailable")
+        const startWidth = (await progress.boundingBox())?.width ?? 0
+        await divider.focus()
+        await page.keyboard.press("ArrowRight")
+        await eventually(async () => (await progress.boundingBox())?.width ?? 0)
+          .satisfies("resize a middle column in the narrow library", width => width > startWidth + 2)
+      } finally {
+        await page.setViewport({ width: 1600, height: 1000 })
+      }
       await bottom.click()
       await eventually(() => bottom.getAttribute("aria-pressed")).equals("true")
       ;(await visibleBounds(".torrent-details-panel-body")).height.should.be.above(100)

@@ -1,5 +1,4 @@
 import axios, { AxiosInstance } from 'axios'
-import httpAdapter from 'axios/lib/adapters/http.js'
 import https from 'https'
 
 import type { BittorrentFilePriority, BittorrentServerConfig, BittorrentTorrentDetailsData, BittorrentTorrentDetailsFile, BittorrentTorrentDetailsTracker, BittorrentTorrentPeer, TorrentClientConnection } from '@shared/ipc-contract'
@@ -174,7 +173,7 @@ export class TransmissionRuntime implements BittorrentRuntime {
                 ca: this.server.certificateData ? Buffer.from(this.server.certificateData) : undefined,
                 rejectUnauthorized: this.server.tlsSecurity !== "insecure",
             }),
-            adapter: httpAdapter,
+            adapter: "http",
             timeout: HTTP_REQUEST_TIMEOUT,
         })
 

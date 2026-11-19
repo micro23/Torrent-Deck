@@ -49,6 +49,7 @@ export class TorrentsPageController {
         let detailsTorrent: any = null;
         let timeout: angular.IPromise<void> | undefined;
         let reconnect: angular.IPromise<void> | undefined;
+        let pollingGeneration = 0;
         let slowSyncTimer: angular.IPromise<void> | undefined;
         let slowConnectionTimer: angular.IPromise<void> | undefined;
         let deferredUploads: Array<{ item: PendingTorrentUploadItem; askUploadOptions: boolean }> = [];
@@ -90,11 +91,25 @@ export class TorrentsPageController {
             try { localStorage.setItem("electorrent-deck-chart-minutes", JSON.stringify($scope.deckChartMinutes)); } catch { /* Storage may be unavailable. */ }
             renderDeckHistory();
         };
-        const historyKey = `electorrent-deck-history:${$rootScope.$server?.id || "default"}`;
-        let speedHistory: number[][] = readStored(historyKey, []);
-        if (!Array.isArray(speedHistory)) speedHistory = [];
-        speedHistory = speedHistory.filter(row => Array.isArray(row) && row.length === 3 && row.every(Number.isFinite));
+        let historyKey = "";
+        let speedHistory: number[][] = [];
         let lastHistorySave = 0;
+        function saveDeckHistory() {
+            if (!historyKey || !speedHistory.length) return;
+            try { localStorage.setItem(historyKey, JSON.stringify(speedHistory)); } catch { /* Chart still works in memory. */ }
+        }
+
+        function loadDeckHistory() {
+            const nextKey = `electorrent-deck-history:${$rootScope.$server?.id || "default"}`;
+            if (historyKey === nextKey) return;
+            saveDeckHistory();
+            historyKey = nextKey;
+            const saved = readStored(historyKey, []);
+            speedHistory = Array.isArray(saved)
+                ? saved.filter(row => Array.isArray(row) && row.length === 3 && row.every(Number.isFinite))
+                : [];
+            lastHistorySave = 0;
+        }
         function renderDeckHistory() {
             const now = Date.now();
             const start = now - $scope.deckChartMinutes * 60000;
@@ -117,6 +132,7 @@ export class TorrentsPageController {
             });
         }
         function recordDeckHistory() {
+            loadDeckHistory();
             const now = Date.now();
             const last = speedHistory[speedHistory.length - 1];
             if (!last || now - last[0] >= 15000) speedHistory.push([now, $scope.totalDownloadSpeed, $scope.totalUploadSpeed]);
@@ -124,7 +140,7 @@ export class TorrentsPageController {
             speedHistory = speedHistory.filter((row, index, rows) => row[0] >= now - 90 * 86400000 &&
                 (row[0] >= now - 3600000 || index === 0 || Math.floor(row[0] / 60000) !== Math.floor(rows[index - 1][0] / 60000)));
             if (now - lastHistorySave >= 60000) {
-                try { localStorage.setItem(historyKey, JSON.stringify(speedHistory)); } catch { /* Chart still works in memory. */ }
+                saveDeckHistory();
                 lastHistorySave = now;
             }
             renderDeckHistory();
@@ -288,12 +304,16 @@ export class TorrentsPageController {
         };
 
         $scope.$on("start:torrents", (event: unknown, fullupdate: boolean) => {
-            $scope.update(!!fullupdate);
-            startTimer();
+            stopTimer();
+            pollTorrents(!!fullupdate, pollingGeneration);
             flushDeferredUploads();
         });
 
         $scope.$on("wipe:torrents", () => {
+            saveDeckHistory();
+            historyKey = "";
+            speedHistory = [];
+            renderDeckHistory();
             initialSnapshotRendered = false;
             $scope.sessionStats = {};
             $scope.freeDiskSpace = null;
@@ -398,6 +418,8 @@ export class TorrentsPageController {
         });
 
         $scope.$on("$destroy", () => {
+            stopTimer();
+            saveDeckHistory();
             void window.electorrent.bittorrent.setSelectedTorrents([]);
         });
 
@@ -582,28 +604,40 @@ export class TorrentsPageController {
             if (timeout) {
                 $timeout.cancel(timeout);
             }
-            timeout = $timeout(() => {
-                $scope.update(fullupdate)
-                    .then(() => {
-                        startTimer();
-                        $scope.connectionLost = false;
-                        setSyncConnectionState("normal");
-                    }).catch(() => {
-                        $notify.alert("Connection lost", "Trying to reconnect");
-                        $scope.connectionLost = true;
-                        setSyncConnectionState("broken");
-                        startReconnect();
-                    });
-            }, refreshRate);
+            const generation = pollingGeneration;
+            timeout = $timeout(() => pollTorrents(fullupdate, generation), refreshRate);
+        }
+
+        function pollTorrents(fullupdate: boolean | undefined, generation: number) {
+            if (generation !== pollingGeneration) return;
+            $scope.update(fullupdate)
+                .then(() => {
+                    if (generation !== pollingGeneration) return;
+                    startTimer();
+                    $scope.connectionLost = false;
+                    setSyncConnectionState("normal");
+                }).catch(() => {
+                    if (generation !== pollingGeneration) return;
+                    $notify.alert("Connection lost", "Trying to reconnect");
+                    $scope.connectionLost = true;
+                    setSyncConnectionState("broken");
+                    startReconnect();
+                });
         }
 
         function startReconnect() {
+            const server = $rootScope.$server;
+            if (!server) return;
+            const generation = pollingGeneration;
+            const isCurrent = () => generation === pollingGeneration && server === $rootScope.$server;
             $notify.disableAll();
             reconnect = $timeout(() => {
-                $rootScope.$server?.connect()
+                if (!isCurrent()) return;
+                server.connect()
                     .then(() => {
-                        return $scope.update(true);
+                        if (isCurrent()) return $scope.update(true);
                     }).then(() => {
+                        if (!isCurrent()) return;
                         flushDeferredUploads();
                         $notify.enableAll();
                         $notify.ok("Reconnected", "The connection has been reestablished");
@@ -611,6 +645,7 @@ export class TorrentsPageController {
                         setSyncConnectionState("normal");
                         startTimer(true);
                     }).catch((err: unknown) => {
+                        if (!isCurrent()) return;
                         startReconnect();
                         console.error(err);
                     });
@@ -639,8 +674,14 @@ export class TorrentsPageController {
         }
 
         function stopTimer() {
+            pollingGeneration++;
             if (timeout) {
                 $timeout.cancel(timeout);
+                timeout = undefined;
+            }
+            if (reconnect) {
+                $timeout.cancel(reconnect);
+                reconnect = undefined;
             }
             cancelSlowSyncTimer();
         }
@@ -1079,13 +1120,16 @@ export class TorrentsPageController {
         let initialSnapshotRendered = false;
 
         $scope.update = (fullupdate?: boolean) => {
+            const generation = pollingGeneration;
             const serverId = $rootScope.$server?.id;
             const request = $rootScope.$btclient?.torrents(!!fullupdate);
+            if (!request) return $q.resolve();
+            const isCurrent = () => generation === pollingGeneration && serverId === $rootScope.$server?.id;
             const startedAt = window.performance.now();
             const slowThreshold = getSlowSyncThreshold();
             cancelSlowSyncRequestTimer();
             slowSyncTimer = $timeout(() => {
-                if (!$scope.connectionLost && serverId === $rootScope.$server?.id) {
+                if (!$scope.connectionLost && isCurrent()) {
                     setSyncConnectionState("slow", undefined, slowThreshold);
                 }
             }, slowThreshold);
@@ -1095,11 +1139,9 @@ export class TorrentsPageController {
             return $q((resolve, reject) => {
                 request.then(resolve, reject);
             }).then((torrents: any) => {
+                if (!isCurrent()) return;
                 cancelSlowSyncRequestTimer();
                 trackSyncRequestLatency(startedAt, serverId);
-                if (serverId !== $rootScope.$server?.id) {
-                    return;
-                }
                 $scope.sessionStats = torrents.sessionStats || {};
                 newTorrents(torrents);
                 deleteTorrents(torrents);
@@ -1113,6 +1155,7 @@ export class TorrentsPageController {
                     $scope.alternativeSpeedLimitsEnabled = torrents.alternativeSpeedLimitsEnabled === true;
                 }
             }).then(() => {
+                if (!isCurrent()) return;
                 syncDetailsPanel();
                 // Do not rely solely on ngRepeat's repeat-done callback to
                 // remove the app-shell loading overlay. Some client responses
@@ -1122,6 +1165,7 @@ export class TorrentsPageController {
                     $scope.renderDone();
                 }
             }).catch((err: unknown) => {
+                if (!isCurrent()) return;
                 cancelSlowSyncTimer();
                 setSyncConnectionState("broken");
                 $scope.renderDone();

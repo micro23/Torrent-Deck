@@ -73,7 +73,7 @@ function checkSquirrel() {
 const shouldQuitFromStartup = checkSquirrel()
 
 export function configureSystemStartup(option: SystemStartupOption) {
-    if (!app.isPackaged || !['darwin', 'win32'].includes(process.platform)) {
+    if (!app.isPackaged || app.commandLine.hasSwitch('test') || !['darwin', 'win32'].includes(process.platform)) {
         return
     }
 

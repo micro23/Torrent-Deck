@@ -1,5 +1,12 @@
 # Changes since the Electorrent fork
 
+## 2.19.24 — responsive columns and steadier refreshes
+
+- Keep enabled columns within the pane. Drag a divider or use the arrow keys to resize, including with the details pane open. Wrapped filenames stay left aligned.
+- Keep the torrent list available when Deluge's disk-space or label request fails, stop stale refreshes on profile changes, and keep transfer history separate for each server.
+- Preserve the previous settings file when a save fails, validate Electron IPC senders, and update the packaged HTTP dependencies.
+- Keep the Linux launcher icon available after an AppImage exits. Ship the universal macOS ZIP, Windows installer, Linux x86-64 AppImage, and Linux portable archive together.
+
 ## 2.19.23 — full-width left-aligned torrent names
 
 - Left-align wrapped torrent names, use all remaining cell width, and reduce space around the row controls.

@@ -44,7 +44,8 @@ function run(argv) {
 `
 
 const FILE_PROG_ID = 'TorrentDeck.torrent'
-const DESKTOP_ID = 'com.github.micro23.torrentdeck.desktop'
+const LINUX_ICON_NAME = 'com.github.micro23.torrentdeck'
+const DESKTOP_ID = `${LINUX_ICON_NAME}.desktop`
 
 function powershellLiteral(value: string) {
     return "'" + value.replace(/'/g, "''") + "'"
@@ -68,6 +69,7 @@ export async function reclaimTorrentFileAssociation(force = false): Promise<stri
     } catch { /* First registration, or the recorded installation was removed. */ }
 
     let result = 'registered'
+    let registeredExecutable = process.execPath
     if (process.platform === 'darwin') {
         const bundlePath = path.resolve(path.dirname(process.execPath), '..', '..')
         await executeFile('/usr/bin/osascript', ['-l', 'JavaScript', '-e', reclaimTorrentScript, bundlePath], {
@@ -108,14 +110,18 @@ if ($choice.ProgId -eq $prog) { 'registered' } else { 'choose-in-settings' }
     } else if (process.platform === 'linux') {
         const dataHome = process.env.XDG_DATA_HOME || path.join(app.getPath('home'), '.local', 'share')
         const applications = path.join(dataHome, 'applications')
-        const executable = process.env.APPIMAGE || (process.env.SNAP ? '/snap/bin/torrent-deck' : process.execPath)
-        const desktop = `[Desktop Entry]\nType=Application\nName=Torrent-Deck\nExec=${desktopExec(executable)}\nIcon=${path.join(process.resourcesPath, 'torrent-deck.png')}\nTerminal=false\nCategories=Network;FileTransfer;P2P;\nMimeType=application/x-bittorrent;x-scheme-handler/magnet;\n`
+        registeredExecutable = process.env.APPIMAGE || (process.env.SNAP ? '/snap/bin/torrent-deck' : process.execPath)
+        // AppImage resources live on a mount that goes away when the app exits.
+        const icons = path.join(dataHome, 'icons', 'hicolor', '256x256', 'apps')
+        await fs.promises.mkdir(icons, { recursive: true })
+        await fs.promises.copyFile(path.join(process.resourcesPath, 'torrent-deck.png'), path.join(icons, `${LINUX_ICON_NAME}.png`))
+        const desktop = `[Desktop Entry]\nType=Application\nName=Torrent-Deck\nExec=${desktopExec(registeredExecutable)}\nIcon=${LINUX_ICON_NAME}\nTerminal=false\nCategories=Network;FileTransfer;P2P;\nMimeType=application/x-bittorrent;x-scheme-handler/magnet;\n`
         await fs.promises.mkdir(applications, { recursive: true })
         await fs.promises.writeFile(path.join(applications, DESKTOP_ID), desktop)
         await executeFile('xdg-mime', ['default', DESKTOP_ID, 'application/x-bittorrent'], { timeout: 10000 })
         const current = await executeFile('xdg-mime', ['query', 'default', 'application/x-bittorrent'], { timeout: 10000 })
         if (current.stdout.trim() !== DESKTOP_ID) throw new Error('Your desktop did not set Torrent-Deck as the torrent handler. Use Open With → Torrent-Deck.')
     }
-    await fs.promises.writeFile(marker, JSON.stringify({ version: app.getVersion(), executable: process.execPath }))
+    await fs.promises.writeFile(marker, JSON.stringify({ version: app.getVersion(), executable: registeredExecutable }))
     return result
 }

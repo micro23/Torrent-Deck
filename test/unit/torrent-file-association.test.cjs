@@ -7,7 +7,7 @@ const ts = require('typescript')
 
 function setup(platform, { packaged = true, previous, appImage } = {}) {
   const files = new Map(previous ? [['/profile/torrent-file-handler.json', JSON.stringify(previous)]] : [])
-  const calls = []; const opened = []
+  const calls = []; const opened = []; const copied = []
   const modules = {
     // These mocked platform fixtures use POSIX paths even on a Windows test host.
     path: require('node:path').posix,
@@ -15,6 +15,7 @@ function setup(platform, { packaged = true, previous, appImage } = {}) {
     fs: { existsSync: name => files.has(name) || name === '/installed/newer', promises: {
       readFile: async name => { if (!files.has(name)) throw Error('missing'); return files.get(name) },
       writeFile: async (name, value) => files.set(name, value), mkdir: async () => {},
+      copyFile: async (source, destination) => copied.push([source, destination]),
     } },
     util: { promisify: () => async (command, args) => {
       calls.push({ command, args });
@@ -26,7 +27,7 @@ function setup(platform, { packaged = true, previous, appImage } = {}) {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, esModuleInterop: true },
   }).outputText
   vm.runInNewContext(compiled, { exports, Buffer, Error, process: { platform, execPath: '/Applications/Torrent-Deck.app/Contents/MacOS/torrent-deck', resourcesPath: '/resources', env: appImage ? { APPIMAGE: appImage } : {} }, require: name => modules[name] || require(name) })
-  return { api: exports, files, calls, opened }
+  return { api: exports, files, calls, opened, copied }
 }
 
 test('development Electron never claims torrent files', async () => {
@@ -52,6 +53,9 @@ test('Linux uses the persistent AppImage and safely quotes desktop executable pa
   await f.api.reclaimTorrentFileAssociation()
   const desktop = f.files.get('/home/user/.local/share/applications/com.github.micro23.torrentdeck.desktop')
   assert.match(desktop, /Exec="\/home\/user\/Torrent Deck 100%%\.AppImage" %F/)
+  assert.match(desktop, /^Icon=com\.github\.micro23\.torrentdeck$/m)
+  assert.deepEqual(f.copied, [['/resources/torrent-deck.png', '/home/user/.local/share/icons/hicolor/256x256/apps/com.github.micro23.torrentdeck.png']])
+  assert.equal(JSON.parse(f.files.get('/profile/torrent-file-handler.json')).executable, '/home/user/Torrent Deck 100%.AppImage')
   assert.equal(f.calls[0].args[2], 'application/x-bittorrent')
 })
 test('Windows registers its executable, preserves UserChoice, and prompts only once', async () => {

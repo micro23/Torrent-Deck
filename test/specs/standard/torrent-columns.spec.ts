@@ -193,11 +193,11 @@ describe("torrent columns", function () {
     await resizeHandle.waitForDisplayed({ timeout: 10 * 1000 })
     await resizeHandle.waitForClickable({ timeout: 10 * 1000 })
     const initialNameWidth = (await nameHeader.getSize()).width
-    await resizeHandle.dragAndDrop({ x: 40, y: 0 })
+    await resizeHandle.dragAndDrop({ x: -40, y: 0 })
     await eventually(async () => (await nameHeader.getSize()).width)
       .satisfies(
-        `change by at least 10px from ${initialNameWidth}px`,
-        (width) => Math.abs(width - initialNameWidth) >= 10,
+        `shrink by at least 10px from ${initialNameWidth}px`,
+        (width) => initialNameWidth - width >= 10,
       )
 
     await this.app.openSettings()

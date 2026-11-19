@@ -48,8 +48,8 @@ export class TorrentFileWatcher {
         }
 
         try {
-            this.watcher = fs.watch(nextDirectory, { recursive: false }, (_eventType, filename) => {
-                if (typeof filename !== 'string' || !filename.endsWith('.torrent')) {
+            const watcher = fs.watch(nextDirectory, { recursive: false }, (_eventType, filename) => {
+                if (typeof filename !== 'string' || !filename.toLowerCase().endsWith('.torrent')) {
                     return
                 }
 
@@ -64,6 +64,12 @@ export class TorrentFileWatcher {
                     void this.processFile(filePath)
                 }, 500))
             })
+            watcher.on('error', error => {
+                if (this.watcher !== watcher) return
+                logger.error('Torrent watch directory became unavailable', { directory: nextDirectory, error })
+                this.stop()
+            })
+            this.watcher = watcher
             this.watchedDirectory = nextDirectory
             logger.info('Watching torrent directory', nextDirectory)
         } catch (error) {
@@ -100,11 +106,9 @@ export class TorrentFileWatcher {
             return
         }
 
-        while (this.pendingSilentWatcherFiles.length > 0) {
-            const file = this.pendingSilentWatcherFiles.shift()
-            if (!file) {
-                continue
-            }
+        // Drain one batch. If the server disconnects during an upload, files
+        // queued for the next connection must not be retried in this loop.
+        for (const file of this.pendingSilentWatcherFiles.splice(0)) {
             await this.uploadWatchedTorrentSilently(file)
         }
     }
@@ -205,7 +209,7 @@ export class TorrentFileWatcher {
                 filename: file.filename,
                 sourcePath: file.sourcePath,
             })
-            this.showNativeNotification('Torrent added', `${file.filename} is downloading in Electorrent`)
+            this.showNativeNotification('Torrent added', `${file.filename} was added to Torrent-Deck`)
         } catch (error) {
             logger.error('Failed to upload watched torrent file', {
                 filename: file.filename,

@@ -14,6 +14,7 @@ import themes, { getSystemTheme } from './themes'
 import * as torrents from './torrents'
 import * as updater from './update'
 import { reclaimTorrentFileAssociation } from './torrent-file-association'
+import { isAppRenderer, isExternalLink } from './renderer-trust'
 
 interface RegisterHandlersOptions {
     isDebug: boolean
@@ -103,7 +104,14 @@ function runEditCommand(window: BrowserWindow, command: EditCommand) {
 export function registerHandlers({ isDebug, forceTitleBarMenu, getWindow, consumePendingLaunchPayload, onSettingsSaved, onSystemThemeChanged, onBittorrentConnected }: RegisterHandlersOptions) {
     menu.configure({ isDebug })
 
-    ipcMain.handle(IPC_CHANNELS.app.claimTorrentFiles, async function() {
+    const handle = (channel: string, handler: Parameters<typeof ipcMain.handle>[1]) => {
+        ipcMain.handle(channel, (event, ...args) => {
+            if (!isAppRenderer(event, getWindow(), 'index.html')) throw new Error('Unexpected IPC sender')
+            return handler(event, ...args)
+        })
+    }
+
+    handle(IPC_CHANNELS.app.claimTorrentFiles, async function() {
         try {
             const status = await reclaimTorrentFileAssociation(true)
             await dialog.showMessageBox({
@@ -120,15 +128,15 @@ export function registerHandlers({ isDebug, forceTitleBarMenu, getWindow, consum
         }
     })
 
-    ipcMain.handle(IPC_CHANNELS.app.getMeta, async function() {
+    handle(IPC_CHANNELS.app.getMeta, async function() {
         return getAppMeta(isDebug, forceTitleBarMenu)
     })
 
-    ipcMain.handle(IPC_CHANNELS.app.getDefaultProtocolStatus, async function(_event: IpcMainInvokeEvent, { protocol }) {
+    handle(IPC_CHANNELS.app.getDefaultProtocolStatus, async function(_event: IpcMainInvokeEvent, { protocol }) {
         return app.isDefaultProtocolClient(protocol)
     })
 
-    ipcMain.handle(IPC_CHANNELS.app.setDefaultProtocolStatus, async function(_event: IpcMainInvokeEvent, { protocol, enabled }) {
+    handle(IPC_CHANNELS.app.setDefaultProtocolStatus, async function(_event: IpcMainInvokeEvent, { protocol, enabled }) {
         if (enabled) {
             app.setAsDefaultProtocolClient(protocol)
         } else {
@@ -136,15 +144,15 @@ export function registerHandlers({ isDebug, forceTitleBarMenu, getWindow, consum
         }
     })
 
-    ipcMain.handle(IPC_CHANNELS.app.quit, async function() {
+    handle(IPC_CHANNELS.app.quit, async function() {
         app.quit()
     })
 
-    ipcMain.handle(IPC_CHANNELS.app.reportCorruptSettings, async function() {
+    handle(IPC_CHANNELS.app.reportCorruptSettings, async function() {
         settings.showCorruptDialog()
     })
 
-    ipcMain.handle(IPC_CHANNELS.window.command, async function(event: IpcMainInvokeEvent, { command }) {
+    handle(IPC_CHANNELS.window.command, async function(event: IpcMainInvokeEvent, { command }) {
         if (!isDebug && (command === 'reload' || command === 'toggle-dev-tools')) {
             return
         }
@@ -155,52 +163,44 @@ export function registerHandlers({ isDebug, forceTitleBarMenu, getWindow, consum
         }
     })
 
-    ipcMain.handle(IPC_CHANNELS.edit.command, async function(event: IpcMainInvokeEvent, { command }) {
+    handle(IPC_CHANNELS.edit.command, async function(event: IpcMainInvokeEvent, { command }) {
         const window = getCommandWindow(event, getWindow)
         if (window) {
             runEditCommand(window, command)
         }
     })
 
-    ipcMain.handle(IPC_CHANNELS.clipboard.readText, async function() {
+    handle(IPC_CHANNELS.clipboard.readText, async function() {
         return clipboard.readText()
     })
 
-    ipcMain.handle(IPC_CHANNELS.clipboard.writeText, async function(_event: IpcMainInvokeEvent, { text }) {
+    handle(IPC_CHANNELS.clipboard.writeText, async function(_event: IpcMainInvokeEvent, { text }) {
         clipboard.writeText(text)
     })
 
-    ipcMain.handle(IPC_CHANNELS.shell.openExternal, async function(_event: IpcMainInvokeEvent, { url }) {
+    handle(IPC_CHANNELS.shell.openExternal, async function(_event: IpcMainInvokeEvent, { url }) {
+        if (!isExternalLink(url)) throw new Error('Unsupported external link')
         await shell.openExternal(url)
     })
 
-    ipcMain.handle(IPC_CHANNELS.settings.getAll, async function() {
+    handle(IPC_CHANNELS.settings.getAll, async function() {
         return settings.getAllSettings()
     })
 
-    ipcMain.handle(IPC_CHANNELS.settings.saveAll, async function(_event: IpcMainInvokeEvent, { settings: newSettings }) {
-        await new Promise<void>((resolve, reject) => {
-            settings.saveAll(newSettings, function(err: Error) {
-                if (err) {
-                    reject(err)
-                    return
-                }
-                resolve()
-            })
-        })
-
-        await onSettingsSaved?.(newSettings)
+    handle(IPC_CHANNELS.settings.saveAll, async function(_event: IpcMainInvokeEvent, { settings: newSettings }) {
+        const savedSettings = settings.saveAll(newSettings)
+        await onSettingsSaved?.(savedSettings)
     })
 
-    ipcMain.handle(IPC_CHANNELS.menu.getModel, async function() {
+    handle(IPC_CHANNELS.menu.getModel, async function() {
         return menu.getModel()
     })
 
-    ipcMain.handle(IPC_CHANNELS.settings.listThemes, async function() {
+    handle(IPC_CHANNELS.settings.listThemes, async function() {
         return themes()
     })
 
-    ipcMain.handle(IPC_CHANNELS.settings.getSystemTheme, async function() {
+    handle(IPC_CHANNELS.settings.getSystemTheme, async function() {
         return getSystemTheme()
     })
 
@@ -212,7 +212,7 @@ export function registerHandlers({ isDebug, forceTitleBarMenu, getWindow, consum
         onSystemThemeChanged?.()
     })
 
-    ipcMain.handle(IPC_CHANNELS.settings.chooseWatchDirectory, async function(_event: IpcMainInvokeEvent, { currentPath }) {
+    handle(IPC_CHANNELS.settings.chooseWatchDirectory, async function(_event: IpcMainInvokeEvent, { currentPath }) {
         const window = getWindow()
         const result = await dialog.showOpenDialog(window || undefined, {
             title: 'Choose Folder to Watch',
@@ -228,19 +228,19 @@ export function registerHandlers({ isDebug, forceTitleBarMenu, getWindow, consum
         return result.filePaths[0]
     })
 
-    ipcMain.handle(IPC_CHANNELS.launch.getPending, async function() {
+    handle(IPC_CHANNELS.launch.getPending, async function() {
         return consumePendingLaunchPayload()
     })
 
-    ipcMain.handle(IPC_CHANNELS.torrents.openFiles, async function(_event: IpcMainInvokeEvent, { askUploadOptions }) {
+    handle(IPC_CHANNELS.torrents.openFiles, async function(_event: IpcMainInvokeEvent, { askUploadOptions }) {
         return torrents.browse(askUploadOptions)
     })
 
-    ipcMain.handle(IPC_CHANNELS.torrents.parse, async function(_event: IpcMainInvokeEvent, request) {
+    handle(IPC_CHANNELS.torrents.parse, async function(_event: IpcMainInvokeEvent, request) {
         return torrents.parse(request)
     })
 
-    ipcMain.handle(IPC_CHANNELS.bittorrent.connect, async function(event: IpcMainInvokeEvent, { server }) {
+    handle(IPC_CHANNELS.bittorrent.connect, async function(event: IpcMainInvokeEvent, { server }) {
         try {
             const connection = await bittorrentManager.connect(event.sender, server)
             if (!connection) {
@@ -264,87 +264,87 @@ export function registerHandlers({ isDebug, forceTitleBarMenu, getWindow, consum
         }
     })
 
-    ipcMain.handle(IPC_CHANNELS.bittorrent.disconnect, async function(event: IpcMainInvokeEvent) {
+    handle(IPC_CHANNELS.bittorrent.disconnect, async function(event: IpcMainInvokeEvent) {
         await bittorrentManager.disconnect(event.sender)
     })
 
-    ipcMain.handle(IPC_CHANNELS.bittorrent.getSnapshot, async function(event: IpcMainInvokeEvent, { fullUpdate } = {}) {
+    handle(IPC_CHANNELS.bittorrent.getSnapshot, async function(event: IpcMainInvokeEvent, { fullUpdate } = {}) {
         return bittorrentManager.getSnapshot(event.sender, fullUpdate)
     })
 
-    ipcMain.handle(IPC_CHANNELS.bittorrent.addTorrentUrl, async function(event: IpcMainInvokeEvent, request) {
+    handle(IPC_CHANNELS.bittorrent.addTorrentUrl, async function(event: IpcMainInvokeEvent, request) {
         return bittorrentManager.addTorrentUrl(event.sender, request)
     })
 
-    ipcMain.handle(IPC_CHANNELS.bittorrent.uploadTorrent, async function(event: IpcMainInvokeEvent, request) {
+    handle(IPC_CHANNELS.bittorrent.uploadTorrent, async function(event: IpcMainInvokeEvent, request) {
         return bittorrentManager.uploadTorrent(event.sender, request)
     })
 
-    ipcMain.handle(IPC_CHANNELS.bittorrent.invokeAction, async function(event: IpcMainInvokeEvent, request) {
+    handle(IPC_CHANNELS.bittorrent.invokeAction, async function(event: IpcMainInvokeEvent, request) {
         return bittorrentManager.invokeAction(event.sender, request)
     })
 
-    ipcMain.handle(IPC_CHANNELS.bittorrent.getActions, async function(event: IpcMainInvokeEvent) {
+    handle(IPC_CHANNELS.bittorrent.getActions, async function(event: IpcMainInvokeEvent) {
         return bittorrentManager.getActions(event.sender)
     })
 
-    ipcMain.handle(IPC_CHANNELS.bittorrent.setSelectedTorrents, async function(event: IpcMainInvokeEvent, { ids }) {
+    handle(IPC_CHANNELS.bittorrent.setSelectedTorrents, async function(event: IpcMainInvokeEvent, { ids }) {
         bittorrentManager.setSelectedTorrents(event.sender, ids)
     })
 
-    ipcMain.handle(IPC_CHANNELS.bittorrent.getTorrentDetails, async function(event: IpcMainInvokeEvent, { id }) {
+    handle(IPC_CHANNELS.bittorrent.getTorrentDetails, async function(event: IpcMainInvokeEvent, { id }) {
         return bittorrentManager.getTorrentDetails(event.sender, id)
     })
 
-    ipcMain.handle(IPC_CHANNELS.bittorrent.getTorrentFiles, async function(event: IpcMainInvokeEvent, { id }) {
+    handle(IPC_CHANNELS.bittorrent.getTorrentFiles, async function(event: IpcMainInvokeEvent, { id }) {
         return bittorrentManager.getTorrentFiles(event.sender, id)
     })
 
-    ipcMain.handle(IPC_CHANNELS.bittorrent.getTorrentPeers, async function(event: IpcMainInvokeEvent, { id }) {
+    handle(IPC_CHANNELS.bittorrent.getTorrentPeers, async function(event: IpcMainInvokeEvent, { id }) {
         return bittorrentManager.getTorrentPeers(event.sender, id)
     })
 
-    ipcMain.handle(IPC_CHANNELS.bittorrent.getTorrentTrackers, async function(event: IpcMainInvokeEvent, { id }) {
+    handle(IPC_CHANNELS.bittorrent.getTorrentTrackers, async function(event: IpcMainInvokeEvent, { id }) {
         return bittorrentManager.getTorrentTrackers(event.sender, id)
     })
 
-    ipcMain.handle(IPC_CHANNELS.bittorrent.addTorrentTracker, async function(event: IpcMainInvokeEvent, { id, url }) {
+    handle(IPC_CHANNELS.bittorrent.addTorrentTracker, async function(event: IpcMainInvokeEvent, { id, url }) {
         return bittorrentManager.addTorrentTracker(event.sender, id, url)
     })
 
-    ipcMain.handle(IPC_CHANNELS.bittorrent.editTorrentTracker, async function(event: IpcMainInvokeEvent, { id, url, newUrl }) {
+    handle(IPC_CHANNELS.bittorrent.editTorrentTracker, async function(event: IpcMainInvokeEvent, { id, url, newUrl }) {
         return bittorrentManager.editTorrentTracker(event.sender, id, url, newUrl)
     })
 
-    ipcMain.handle(IPC_CHANNELS.bittorrent.removeTorrentTracker, async function(event: IpcMainInvokeEvent, { id, url }) {
+    handle(IPC_CHANNELS.bittorrent.removeTorrentTracker, async function(event: IpcMainInvokeEvent, { id, url }) {
         return bittorrentManager.removeTorrentTracker(event.sender, id, url)
     })
 
-    ipcMain.handle(IPC_CHANNELS.bittorrent.setTorrentFileSelection, async function(event: IpcMainInvokeEvent, request) {
+    handle(IPC_CHANNELS.bittorrent.setTorrentFileSelection, async function(event: IpcMainInvokeEvent, request) {
         return bittorrentManager.setTorrentFileSelection(event.sender, request)
     })
 
-    ipcMain.handle(IPC_CHANNELS.bittorrent.setTorrentFilePriority, async function(event: IpcMainInvokeEvent, request) {
+    handle(IPC_CHANNELS.bittorrent.setTorrentFilePriority, async function(event: IpcMainInvokeEvent, request) {
         return bittorrentManager.setTorrentFilePriority(event.sender, request)
     })
 
-    ipcMain.handle(IPC_CHANNELS.updates.check, async function(_event: IpcMainInvokeEvent, { verbose }) {
+    handle(IPC_CHANNELS.updates.check, async function(_event: IpcMainInvokeEvent, { verbose }) {
         updater.checkForUpdates(verbose)
     })
 
-    ipcMain.handle(IPC_CHANNELS.updates.download, async function() {
+    handle(IPC_CHANNELS.updates.download, async function() {
         updater.downloadUpdateAfterApproval()
     })
 
-    ipcMain.handle(IPC_CHANNELS.updates.installDownloaded, async function() {
+    handle(IPC_CHANNELS.updates.installDownloaded, async function() {
         updater.manualQuitAndUpdate()
     })
 
-    ipcMain.handle(IPC_CHANNELS.updates.installAuto, async function() {
+    handle(IPC_CHANNELS.updates.installAuto, async function() {
         updater.quitAndInstall()
     })
 
-    ipcMain.handle(IPC_CHANNELS.certificates.fetch, async function(_event: IpcMainInvokeEvent, request) {
+    handle(IPC_CHANNELS.certificates.fetch, async function(_event: IpcMainInvokeEvent, request) {
         return new Promise((resolve, reject) => {
             certificates.get(request.server, function(err: Error, cert: unknown) {
                 if (err) {
@@ -362,7 +362,7 @@ export function registerHandlers({ isDebug, forceTitleBarMenu, getWindow, consum
         })
     })
 
-    ipcMain.handle(IPC_CHANNELS.certificates.install, async function(_event: IpcMainInvokeEvent, request) {
+    handle(IPC_CHANNELS.certificates.install, async function(_event: IpcMainInvokeEvent, request) {
         return new Promise((resolve, reject) => {
             certificates.installCertificate(request, function(err: Error, fingerprint: string) {
                 if (err) reject(err)
@@ -371,7 +371,7 @@ export function registerHandlers({ isDebug, forceTitleBarMenu, getWindow, consum
         })
     })
 
-    ipcMain.handle(IPC_CHANNELS.certificates.load, async function(_event: IpcMainInvokeEvent, { fingerprint }) {
+    handle(IPC_CHANNELS.certificates.load, async function(_event: IpcMainInvokeEvent, { fingerprint }) {
         const cert = certificates.loadCertificate(fingerprint)
         return cert ? new Uint8Array(cert) : null
     })

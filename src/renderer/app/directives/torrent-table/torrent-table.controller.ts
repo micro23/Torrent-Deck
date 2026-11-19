@@ -6,15 +6,16 @@ export class TorrentBodyController {
     columns: any[] = [];
     $template = "";
     $renderColumns: any[] = [];
-    $rows: Array<{ render: () => void }> = [];
+    private readonly rows = new Set<() => void>();
     $link: (scope: IScope, cloneAttachFn?: (clonedElement: JQuery) => void) => JQuery;
 
     constructor(private $compile: ICompileService) {
         this.$link = () => $();
     }
 
-    subscribe(row: { render: () => void }) {
-        this.$rows.push(row);
+    subscribe(render: () => void) {
+        this.rows.add(render);
+        return () => { this.rows.delete(render); };
     }
 
     renderTemplate() {
@@ -31,8 +32,6 @@ export class TorrentBodyController {
 
     render() {
         this.renderTemplate();
-        this.$rows.forEach((row) => {
-            row.render();
-        });
+        this.rows.forEach(render => render());
     }
 }

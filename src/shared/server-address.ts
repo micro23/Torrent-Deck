@@ -23,13 +23,19 @@ export function parseServerAddressInput(input: unknown, fallbackProtocol = "http
         const parsed = new URL(protocolMatch ? address : `${baseProtocol}://${address}`)
         const parsedProtocol = parsed.protocol.replace(/:$/, "").toLowerCase()
         const protocol = protocolMatch && SUPPORTED_PROTOCOLS.has(parsedProtocol) ? parsedProtocol : undefined
+        // URL.port omits an explicit scheme default such as :443. The server
+        // field still needs that port to override a previously saved port.
+        const authority = address.slice(protocolMatch?.[0].length || 0).split(/[/?#\\]/, 1)[0]
+        const host = authority.slice(authority.lastIndexOf("@") + 1)
+        const portText = parsed.port || /^(?:\[[^\]]+\]|[^:]+):(\d+)$/.exec(host)?.[1]
+        const port = portText ? Number(portText) : undefined
 
         return {
             hostname: parsed.hostname.replace(/^\[|\]$/g, ""),
             protocol,
-            port: parsed.port ? Number(parsed.port) : undefined,
+            port,
             hasExplicitProtocol: !!protocol,
-            hasExplicitPort: !!parsed.port,
+            hasExplicitPort: port !== undefined,
         }
     } catch (_err) {
         return {
@@ -49,6 +55,6 @@ export function sanitizeServerAddress<T extends SanitizableServerAddress>(server
         ...server,
         ip: parsed.hostname,
         proto: parsed.protocol || server.proto,
-        port: parsed.port || server.port,
+        port: parsed.port ?? server.port,
     }
 }

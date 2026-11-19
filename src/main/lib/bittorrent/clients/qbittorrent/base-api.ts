@@ -1,7 +1,7 @@
 import fs from "fs"
 import path from "path"
 
-import request from "request"
+import request from "@cypress/request"
 
 import { appendUrlPath, HTTP_LOGIN_TIMEOUT, HTTP_REQUEST_TIMEOUT } from "@main/lib/bittorrent/helpers"
 

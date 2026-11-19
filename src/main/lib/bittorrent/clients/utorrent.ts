@@ -1,6 +1,5 @@
 import { URL } from 'node:url'
 import axios, { AxiosInstance } from 'axios'
-import httpAdapter from 'axios/lib/adapters/http.js'
 import FormData from 'form-data'
 import https from 'https'
 import qs from 'qs'
@@ -118,7 +117,7 @@ export class UtorrentRuntime implements BittorrentRuntime {
                 rejectUnauthorized: server.tlsSecurity !== "insecure",
             }),
             paramsSerializer: (params) => qs.stringify(params, { arrayFormat: 'repeat' }),
-            adapter: httpAdapter,
+            adapter: "http",
             timeout: HTTP_REQUEST_TIMEOUT,
         })
 

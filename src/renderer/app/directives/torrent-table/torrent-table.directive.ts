@@ -1,10 +1,6 @@
 import { IAugmentedJQuery, IDirective, IDirectiveFactory, IScope } from "angular";
 import { TorrentBodyController } from "./torrent-table.controller";
 
-interface TorrentRowScope extends IScope {
-    render: () => void;
-}
-
 export class TorrentBodyDirective implements IDirective {
     restrict = "A";
     controller = TorrentBodyController;
@@ -39,15 +35,19 @@ export class TorrentRowDirective implements IDirective {
         return () => new TorrentRowDirective();
     }
 
-    link(scope: TorrentRowScope, element: IAugmentedJQuery, attr: unknown, controller: TorrentBodyController) {
-        scope.render = () => {
+    link(scope: IScope, element: IAugmentedJQuery, attr: unknown, controller: TorrentBodyController) {
+        let cellScope: IScope | undefined;
+        const render = () => {
+            cellScope?.$destroy();
             element.empty();
-            controller.$link(scope, (clone) => {
+            cellScope = scope.$new();
+            controller.$link(cellScope, (clone) => {
                 element.append(clone);
             });
         };
 
-        scope.render();
-        controller.subscribe(scope);
+        render();
+        const unsubscribe = controller.subscribe(render);
+        scope.$on("$destroy", unsubscribe);
     }
 }

@@ -1,4 +1,4 @@
-import request from "request"
+import request from "@cypress/request"
 import parseTorrent from "parse-torrent"
 
 import type { BittorrentFilePriority, BittorrentFileSelection, BittorrentServerConfig, BittorrentTorrentDetailsData, BittorrentTorrentDetailsFile, BittorrentTorrentDetailsTracker, BittorrentTorrentPeer, TorrentClientConnection } from "@shared/ipc-contract"
@@ -135,6 +135,8 @@ export class DelugeRuntime implements BittorrentRuntime {
     }
 
     private supportsLabels = false
+
+    private lastLabels: string[] = []
 
     private downloadLocation: string | null = null
 
@@ -346,21 +348,32 @@ export class DelugeRuntime implements BittorrentRuntime {
             : DELUGE_TORRENT_FIELDS.filter((field) => field !== "label")
         const [snapshot, labels, freeDiskSpace] = await Promise.all([
             defer<Record<string, any>>((done) => this.rpc("web.update_ui", [fields, {}], done)),
-            this.supportsLabels
-                ? defer<string[]>((done) => this.rpc("label.get_labels", [], done))
-                : Promise.resolve([]),
-            this.getFreeDiskSpace(),
+            this.getSnapshotLabels(),
+            this.getFreeDiskSpace().catch(() => null),
         ])
 
+        if (snapshot?.connected === false) {
+            throw new Error("Deluge Web is disconnected from its daemon")
+        }
         if (!snapshot || typeof snapshot.torrents !== "object" || snapshot.torrents === null || Array.isArray(snapshot.torrents)) {
             throw new Error("Invalid torrent snapshot from Deluge")
         }
 
         return {
             ...snapshot,
-            labels: Array.isArray(labels) ? labels : [],
+            labels,
             freeDiskSpace,
         }
+    }
+
+    private async getSnapshotLabels(): Promise<string[]> {
+        if (!this.supportsLabels) return []
+        // The torrent snapshot is authoritative for connection health. Transient
+        // plugin failures should not remove the user's labels or reconnect Web.
+        const labels = await defer<string[]>((done) => this.rpc("label.get_labels", [], done, 5000))
+            .catch(() => null)
+        if (Array.isArray(labels)) this.lastLabels = labels.filter(label => typeof label === "string")
+        return this.lastLabels
     }
 
     private async getFreeDiskSpace(): Promise<number | null> {
@@ -368,8 +381,8 @@ export class DelugeRuntime implements BittorrentRuntime {
             return null
         }
 
-        const value = await defer<number | string | null>((done) => this.rpc("core.get_free_space", [this.downloadLocation], done))
-        if (value == null || (typeof value === "string" && !value.trim())) return null
+        const value = await defer<number | string | null>((done) => this.rpc("core.get_free_space", [this.downloadLocation], done, 5000))
+        if (typeof value !== "number" && (typeof value !== "string" || !value.trim())) return null
         const numeric = typeof value === "number" ? value : Number(value)
         return Number.isFinite(numeric) && numeric >= 0 ? numeric : null
     }

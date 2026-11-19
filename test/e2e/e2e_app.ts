@@ -512,15 +512,28 @@ export class App {
       return
     }
 
-    // The sidebar is unscaled. ChromeDriver on Linux can offset clicks on
-    // the CSS-zoomed toolbar, even when its gear reports itself clickable.
-    const sidebarSettingsButton = $(".terminal-preferences")
-    const settingsButtonSelector = await sidebarSettingsButton.isDisplayed() && await sidebarSettingsButton.isClickable()
-      ? ".terminal-preferences" : 'button[data-role="show-settings"]'
-    const settingsButton = $(settingsButtonSelector)
-    await settingsButton.waitForDisplayed()
-    await settingsButton.waitForClickable()
-    await settingsButton.click()
+    // Use the on-screen hit target. ChromeDriver's element click can miss a
+    // CSS-zoomed button on Linux, and the overlay can briefly cover the sidebar.
+    const puppeteer = await browser.getPuppeteer()
+    const page = (await puppeteer.pages()).find(page => page.url().endsWith("/index.html"))
+    if (!page) throw new Error("Electron renderer page not found")
+    const point = await page.waitForFunction(() => {
+      for (const selector of [".terminal-preferences", 'button[data-role="show-settings"]']) {
+        const button = document.querySelector(selector)
+        if (!button) continue
+        const box = button.getBoundingClientRect()
+        const x = box.x + box.width / 2
+        const y = box.y + box.height / 2
+        if (box.width && box.height && button.contains(document.elementFromPoint(x, y))) return { x, y }
+      }
+      return null
+    }, { timeout: this.timeout })
+    try {
+      const { x, y } = await point.jsonValue()
+      await page.mouse.click(x, y)
+    } finally {
+      await point.dispose()
+    }
     await this.settingsPageIsVisible()
     await this.waitForSettingsTransition()
   }

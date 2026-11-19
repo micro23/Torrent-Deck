@@ -1,7 +1,7 @@
 {
   "name": "torrent-deck",
   "productName": "Torrent-Deck",
-  "version": "2.19.23",
+  "version": "2.19.24",
   "description": "A themed desktop remote client for managing torrents across your servers",
   "main": "main.js",
   "scripts": {
@@ -28,20 +28,21 @@
   },
   "homepage": "https://github.com/micro23/Torrent-Deck#readme",
   "dependencies": {
-    "axios": "^0.24.0",
+    "@cypress/request": "^4.0.1",
+    "axios": "^1.21.1",
     "electron-is": "^3.0.0",
     "electron-regedit": "^2.0.0",
     "electron-squirrel-startup": "^1.0.0",
     "electron-updater": "^6.8.9",
     "form-data": "^4.0.5",
     "geoip-country": "^5.0.202607180103",
-    "qs": "^6.10.1",
-    "request": "^2.74.0",
+    "qs": "^6.17.1",
     "semver": "^5.7.2",
     "winston": "^2.2.0",
-    "yargs": "^4.8.1"
+    "yargs": "^18.0.0"
   },
   "overrides": {
-    "form-data": "$form-data"
+    "form-data": "$form-data",
+    "ip-address": "10.7.6"
   }
 }

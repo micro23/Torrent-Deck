@@ -1,5 +1,4 @@
 import axios, { AxiosInstance, AxiosResponse, type AxiosRequestConfig } from 'axios'
-import httpAdapter from 'axios/lib/adapters/http.js'
 import FormData from 'form-data'
 import https from 'https'
 
@@ -187,7 +186,7 @@ export class SynologyRuntime implements BittorrentRuntime {
                 ca: server.certificateData ? Buffer.from(server.certificateData) : undefined,
                 rejectUnauthorized: server.tlsSecurity !== "insecure",
             }),
-            adapter: httpAdapter,
+            adapter: "http",
             timeout: HTTP_REQUEST_TIMEOUT,
         })
 

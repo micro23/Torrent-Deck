@@ -1,5 +1,5 @@
 import { URL } from "node:url"
-import request from "request"
+import request from "@cypress/request"
 import parseTorrent from "parse-torrent"
 
 import type {

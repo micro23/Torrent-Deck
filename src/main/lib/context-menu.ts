@@ -3,6 +3,7 @@ import path from 'path'
 
 import { IPC_CHANNELS } from '@shared/ipc'
 import type { ContextMenuModel, ContextMenuSize } from '@shared/ipc-contract'
+import { isAppRenderer } from './renderer-trust'
 
 const MINIMUM_SIZE = 1
 const MENU_WINDOW_MARGIN = 12
@@ -24,18 +25,13 @@ export function registerContextMenuHandlers(getWindow: () => BrowserWindow | nul
     }
 
     const isMenuSender = (event: IpcMainInvokeEvent) => {
-        return !!menuWindow && !menuWindow.isDestroyed() && event.sender === menuWindow.webContents
+        return isAppRenderer(event, menuWindow, 'context-menu.html')
     }
 
     ipcMain.handle(IPC_CHANNELS.contextMenu.show, async function(event: IpcMainInvokeEvent, model: ContextMenuModel) {
+        const parent = getWindow()
+        if (!parent || !isAppRenderer(event, parent, 'index.html')) return
         closeMenu()
-
-        const requestedParent = BrowserWindow.fromWebContents(event.sender)
-        const fallbackParent = getWindow()
-        const parent = requestedParent && !requestedParent.isDestroyed() ? requestedParent : fallbackParent
-        if (!parent || parent.isDestroyed()) {
-            return
-        }
 
         parentWindow = parent
         parentModel = model
@@ -63,6 +59,8 @@ export function registerContextMenuHandlers(getWindow: () => BrowserWindow | nul
             },
         })
         menuWindow = child
+        child.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
+        child.webContents.on('will-navigate', event => event.preventDefault())
 
         const closeIfCurrent = () => {
             if (menuWindow === child) {
@@ -89,7 +87,7 @@ export function registerContextMenuHandlers(getWindow: () => BrowserWindow | nul
     })
 
     ipcMain.handle(IPC_CHANNELS.contextMenu.hide, async function(event: IpcMainInvokeEvent) {
-        if ((parentWindow && event.sender === parentWindow.webContents) || isMenuSender(event)) {
+        if (isAppRenderer(event, parentWindow, 'index.html') || isMenuSender(event)) {
             closeMenu()
         }
     })

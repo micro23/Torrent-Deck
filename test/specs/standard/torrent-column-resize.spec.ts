@@ -75,6 +75,10 @@ describe("torrent column resizing", function () {
       })
       assert.isAtMost(nameLayout.rightGap, 2, "filename uses all width after the controls")
       assert.equal(nameLayout.indents.every(indent => indent <= 1), true, "wrapped filename lines start at the left edge")
+      await handle!.focus()
+      await page.keyboard.press("ArrowRight")
+      const keyboardWidth = (await target!.boundingBox())!.width
+      assert.isAbove(keyboardWidth, resized!.width + 4, "the focused divider can resize by keyboard")
       assert.equal(await torrent.isExisting(), true)
     } finally {
       if (await torrent.isExisting()) await torrent.delete()
