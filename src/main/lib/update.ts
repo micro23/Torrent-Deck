@@ -2,7 +2,7 @@ import { app, dialog, shell, type BrowserWindow } from 'electron'
 import { autoUpdater, type UpdateInfo } from 'electron-updater'
 import fs from 'fs'
 import path from 'path'
-import request from 'request'
+import request from '@cypress/request'
 import semver from 'semver'
 
 import { IPC_CHANNELS } from '@shared/ipc'

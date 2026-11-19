@@ -24,3 +24,9 @@ test('invalid saved ports fail instead of silently connecting to localhost', () 
   assert.equal(helpers.serverOriginUrl({ ip: '192.0.2.10', proto: 'http', port: 16800 }), 'http://192.0.2.10:16800')
   assert.equal(helpers.serverOriginUrl({ ip: '::1', proto: 'https', port: 8443 }), 'https://[::1]:8443')
 })
+
+test('an explicitly pasted default port overrides the stored nonstandard port', () => {
+  assert.equal(helpers.serverOriginUrl({ ip: 'https://seedbox.example:443/web', proto: 'http', port: 8112 }), 'https://seedbox.example')
+  assert.equal(helpers.serverOriginUrl({ ip: '[2001:db8::1]:80', proto: 'http', port: 8112 }), 'http://[2001:db8::1]')
+  assert.equal(helpers.serverOriginUrl({ ip: 'https://seedbox.example/web', proto: 'http', port: 8112 }), 'https://seedbox.example:8112')
+})

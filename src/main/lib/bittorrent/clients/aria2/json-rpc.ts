@@ -1,5 +1,4 @@
 import axios, { type AxiosInstance, type AxiosResponse } from "axios"
-import httpAdapter from "axios/lib/adapters/http.js"
 import https from "node:https"
 
 import { HTTP_REQUEST_TIMEOUT, serverUrl } from "@main/lib/bittorrent/helpers"
@@ -72,7 +71,7 @@ export class Aria2JsonRpcTransport {
         this.endpoint = path.split("/").pop() === "jsonrpc" ? baseUrl : serverUrl(server, "jsonrpc")
         this.secret = server.password || ""
         this.http = axios.create({
-            adapter: httpAdapter,
+            adapter: "http",
             timeout: HTTP_REQUEST_TIMEOUT,
             auth: server.user ? { username: server.user, password: server.password } : undefined,
             httpsAgent: new https.Agent({

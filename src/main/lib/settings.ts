@@ -1,6 +1,7 @@
 import { app, dialog, shell, type BrowserWindow, type MessageBoxOptions } from 'electron'
 import fs from 'fs'
 import path from 'path'
+import { randomUUID } from 'node:crypto'
 
 import type { AppSettings } from '@shared/ipc-contract'
 import { createDefaultSettings, normalizeSettings } from '@shared/settings-defaults'
@@ -82,12 +83,18 @@ function load(): PersistedSettings {
     return data
 }
 
-function save(callback: (err?: Error | null) => void) {
-    fs.writeFile(CONF_PATH, JSON.stringify(data, null, 4), callback)
-}
-
-function saveSync() {
-    fs.writeFileSync(CONF_PATH, JSON.stringify(data, null, 4))
+function persist(settings: PersistedSettings) {
+    const temporaryPath = `${CONF_PATH}.${randomUUID()}.tmp`
+    try {
+        fs.writeFileSync(temporaryPath, JSON.stringify(settings, null, 4), { mode: 0o600, flag: 'wx' })
+        fs.renameSync(temporaryPath, CONF_PATH)
+    } catch (error) {
+        // Keep the original write error if an unwritable directory also prevents cleanup.
+        try { fs.rmSync(temporaryPath, { force: true }) } catch { /* Cleanup is best effort. */ }
+        throw error
+    }
+    data = settings
+    notifyChanged()
 }
 
 function copy<T>(object: T): T {
@@ -122,13 +129,8 @@ function copyArray<T>(array: T[]): T[] {
     return copiedArray
 }
 
-export function put<K extends keyof PersistedSettings>(key: K, value: PersistedSettings[K], callback?: (err?: Error | null) => void) {
-    const settings = load()
-    settings[key] = copy(value)
-    notifyChanged()
-    if (callback !== undefined) {
-        save(callback)
-    }
+export function put<K extends keyof PersistedSettings>(key: K, value: PersistedSettings[K]) {
+    persist({ ...load(), [key]: copy(value) })
 }
 
 export function getAllSettings(): AppSettings {
@@ -139,16 +141,11 @@ export function getDefaultSettings(): AppSettings {
     return createDefaultSettings()
 }
 
-export function write() {
-    saveSync()
-}
-
-export function saveAll(settings: AppSettings, callback?: (err?: Error | null) => void) {
-    data = normalizeSettings(settings)
-    notifyChanged()
-    if (callback !== undefined) {
-        save(callback)
-    }
+export function saveAll(settings: AppSettings): AppSettings {
+    const normalized = normalizeSettings(settings)
+    // Window geometry is owned by the main process. Renderer settings may be stale.
+    persist({ ...normalized, windowsize: load().windowsize })
+    return normalized
 }
 
 export function get<K extends keyof PersistedSettings>(key: K): PersistedSettings[K] | null {

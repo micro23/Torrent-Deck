@@ -19,7 +19,7 @@ import logger from "../logger"
 import * as settings from "../settings"
 import { createRuntime } from "./registry"
 import type { BittorrentRuntime } from "./types"
-import { withTorrentActionAccelerators } from "@shared/torrent-actions"
+import { withTorrentActionAccelerators, type TorrentActionItem } from "@shared/torrent-actions"
 
 export interface BittorrentSessionState {
     activeServerId: string | null
@@ -35,6 +35,16 @@ const EMPTY_SESSION_STATE: BittorrentSessionState = {
     isConnected: false,
     selectedTorrentCount: 0,
     actions: [],
+}
+
+// These commands have dedicated controls instead of entries in the context menu.
+const CONTROL_ACTIONS = new Set([
+    "pauseAll", "resumeAll", "label", "setLabel", "setCategory", "setLocation",
+    "setSpeedLimits", "setRatioLimit", "setAlternativeSpeedLimitsMode",
+])
+
+function hasMenuAction(items: TorrentActionItem[], action: string): boolean {
+    return items.some(item => item.action === action || (item.menu && hasMenuAction(item.menu, action)))
 }
 
 class BittorrentManager {
@@ -79,6 +89,8 @@ class BittorrentManager {
 
     async connect(sender: WebContents, server: BittorrentServerConfig): Promise<TorrentClientConnection | null> {
         const senderId = sender.id
+        const existing = this.sessions.get(senderId)
+        this.sessions.delete(senderId)
         this.setSessionState(senderId, {
             activeServerId: server.id || null,
             activeClientId: server.client || null,
@@ -86,27 +98,29 @@ class BittorrentManager {
             selectedTorrentCount: 0,
             actions: [],
         })
-        const pendingConnect = (async () => {
-            const existing = this.sessions.get(senderId)
-            if (existing) {
-                if (typeof existing.disconnect === "function") {
-                    await existing.disconnect()
-                }
-                this.sessions.delete(senderId)
+        const assertCurrentConnection = () => {
+            if (this.pendingConnections.get(senderId) !== pendingConnect) {
+                throw new Error("Stale bittorrent connection")
             }
-
+        }
+        const pendingConnect = Promise.resolve().then(async () => {
+            await this.disposeRuntime(existing)
+            assertCurrentConnection()
             const runtime = createRuntime(server.client)
             if (!runtime) {
                 this.setSessionState(senderId, EMPTY_SESSION_STATE)
                 return null
             }
 
-            const connection = await runtime.connect(server)
-            if (this.pendingConnections.get(senderId) !== pendingConnect) {
-                if (typeof runtime.disconnect === "function") {
-                    await runtime.disconnect()
-                }
-                throw new Error("Stale bittorrent connection")
+            let connection: TorrentClientConnection
+            try {
+                connection = await runtime.connect(server)
+                assertCurrentConnection()
+            } catch (error) {
+                await this.disposeRuntime(runtime)
+                assertCurrentConnection()
+                this.setSessionState(senderId, EMPTY_SESSION_STATE)
+                throw error
             }
             this.sessions.set(senderId, runtime)
             this.setSessionState(senderId, {
@@ -117,7 +131,7 @@ class BittorrentManager {
                 actions: withTorrentActionAccelerators(runtime.actions),
             })
             return connection
-        })()
+        })
 
         this.pendingConnections.set(senderId, pendingConnect)
         try {
@@ -131,21 +145,19 @@ class BittorrentManager {
 
     async disconnect(sender: WebContents): Promise<void> {
         const senderId = sender.id
-        const pending = this.pendingConnections.get(senderId)
-        if (pending) {
-            await pending.catch(() => undefined)
-        }
-
+        this.pendingConnections.delete(senderId)
         const existing = this.sessions.get(senderId)
-        if (!existing) {
-            this.setSessionState(senderId, EMPTY_SESSION_STATE)
-            return
-        }
-        if (typeof existing.disconnect === "function") {
-            await existing.disconnect()
-        }
         this.sessions.delete(senderId)
         this.setSessionState(senderId, EMPTY_SESSION_STATE)
+        await this.disposeRuntime(existing)
+    }
+
+    private async disposeRuntime(runtime: BittorrentRuntime | undefined) {
+        try {
+            await runtime?.disconnect?.()
+        } catch (error) {
+            logger.warn("Failed to close previous bittorrent session", error)
+        }
     }
 
     async getSnapshot(sender: WebContents, fullUpdate?: boolean) {
@@ -182,6 +194,9 @@ class BittorrentManager {
 
     async invokeAction(sender: WebContents, request: BittorrentInvokeActionRequest) {
         const runtime = await this.getSession(sender)
+        if (typeof request.action !== "string" || !(CONTROL_ACTIONS.has(request.action) || hasMenuAction(runtime.actions, request.action))) {
+            throw new Error("Unsupported bittorrent action")
+        }
         const action = (runtime as unknown as Record<string, unknown>)[request.action]
         if (typeof action !== "function") {
             throw new Error(`Unsupported bittorrent action: ${request.action}`)

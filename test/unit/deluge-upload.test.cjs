@@ -22,7 +22,7 @@ function runtime(result = 'torrent-hash', error, response) {
   }
   const { DelugeRuntime } = load('src/main/lib/bittorrent/clients/deluge/index.ts', {
     '@main/lib/bittorrent/helpers': helpers,
-    request: (options, callback) => {
+    '@cypress/request': (options, callback) => {
       calls.push(options)
       callback(null, { statusCode: 200 }, response ? response(options.body) : { result, error })
     },
@@ -120,6 +120,24 @@ test('Deluge rejects malformed snapshots instead of replacing the list with an e
   }
   const snapshot = await runtime({ torrents: {}, stats: {} }).api.getSnapshot()
   assert.deepEqual(Object.keys(snapshot.torrents), [])
+  await assert.rejects(runtime({ connected: false, torrents: {} }).api.getSnapshot(), /disconnected from its daemon/)
+})
+
+test('Deluge keeps a healthy list and last labels if supplemental status fails', async () => {
+  let unavailable = false
+  const { api } = runtime(null, null, ({ method }) => {
+    if (method === 'web.update_ui') return { result: { connected: true, torrents: { sample: { name: 'Sample' } } } }
+    if (unavailable) return { error: { message: 'Status temporarily unavailable' } }
+    return { result: method === 'label.get_labels' ? ['movies'] : 1024 }
+  })
+  api.supportsLabels = true
+  api.downloadLocation = '/downloads'
+  assert.equal((await api.getSnapshot()).freeDiskSpace, 1024)
+  unavailable = true
+  const snapshot = await api.getSnapshot()
+  assert.deepEqual(Object.keys(snapshot.torrents), ['sample'])
+  assert.deepEqual(Array.from(snapshot.labels), ['movies'])
+  assert.equal(snapshot.freeDiskSpace, null)
 })
 
 test('Deluge snapshot requests stay constant as torrent count grows', async () => {

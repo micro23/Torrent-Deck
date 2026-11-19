@@ -8,7 +8,6 @@ export interface StoredWindowState extends Rectangle {
 interface WindowStateSettings {
     get: (key: string) => unknown
     put: (key: string, value: unknown) => void
-    write: () => void
 }
 
 const WINDOW_STATE_KEY = 'windowsize'
@@ -63,5 +62,4 @@ export function saveWindowState(window: BrowserWindow, settings: WindowStateSett
     }
 
     settings.put(WINDOW_STATE_KEY, windowState)
-    settings.write()
 }

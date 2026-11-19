@@ -9,7 +9,7 @@ productName: Torrent-Deck
 appId: com.github.micro23.torrentdeck
 executableName: torrent-deck
 extraResources:
-  - from: assets/torrent-deck.png
+  - from: build/png/256x256.png
     to: torrent-deck.png
 publish:
   - provider: github

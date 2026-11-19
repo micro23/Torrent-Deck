@@ -15,7 +15,7 @@ global.Date = class extends NativeDate {
   static now() { return NativeDate.now() + offset }
 }
 const fs = require('node:fs'), vm = require('node:vm'), ts = require('typescript')
-const http = require('node:http'), request = require('request')
+const http = require('node:http'), request = require('@cypress/request')
 const methods = []
 const server = http.createServer(async (req, res) => {
   const chunks = []

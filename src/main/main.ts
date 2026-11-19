@@ -19,6 +19,7 @@ import semver from 'semver'
 
 import startup, { configureSystemStartup, shouldStartInBackground } from '@main/lib/startup'
 import { reclaimTorrentFileAssociation } from '@main/lib/torrent-file-association'
+import { isExternalLink } from '@main/lib/renderer-trust'
 import type { PendingTorrentUploadLink } from '@shared/ipc-contract'
 
 declare const __non_webpack_require__: NodeRequire | undefined
@@ -194,7 +195,11 @@ async function bootstrap() {
             return
         }
 
-        windowState.saveWindowState(torrentWindow, settings)
+        try {
+            windowState.saveWindowState(torrentWindow, settings)
+        } catch (error) {
+            logger.error('Failed to save window position', error)
+        }
     }
 
     function hideTorrentWindow() {
@@ -282,8 +287,6 @@ async function bootstrap() {
             }
         })
 
-        torrentWindow.loadURL(`file://${__dirname}/index.html`)
-
         const windowWebContents: WebContents = torrentWindow.webContents
         windowWebContents.on('did-start-loading', () => {
             rendererLoaded = false
@@ -291,14 +294,6 @@ async function bootstrap() {
         windowWebContents.on('did-finish-load', () => {
             rendererLoaded = true
         })
-        const isExternalUrl = (url: string) => {
-            try {
-                const parsedUrl = new URL(url)
-                return ['http:', 'https:', 'mailto:'].includes(parsedUrl.protocol)
-            } catch {
-                return false
-            }
-        }
         const openInDefaultBrowser = (url: string) => {
             void shell.openExternal(url).catch((error) => {
                 logger.error('Failed to open external URL', { url, error })
@@ -306,7 +301,7 @@ async function bootstrap() {
         }
 
         windowWebContents.setWindowOpenHandler(({ url }) => {
-            if (isExternalUrl(url)) {
+            if (isExternalLink(url)) {
                 openInDefaultBrowser(url)
             }
 
@@ -314,12 +309,11 @@ async function bootstrap() {
         })
 
         windowWebContents.on('will-navigate', (event, url) => {
-            if (!isExternalUrl(url)) {
-                return
-            }
-
             event.preventDefault()
-            openInDefaultBrowser(url)
+            if (isExternalLink(url)) openInDefaultBrowser(url)
+        })
+        void torrentWindow.loadFile(path.join(__dirname, 'index.html')).catch(error => {
+            logger.error('Failed to load Torrent-Deck', error)
         })
 
         torrentWindow.on('close', (event) => {
@@ -533,9 +527,11 @@ async function bootstrap() {
     })
 
     void app.whenReady().then(function() {
-        void reclaimTorrentFileAssociation().catch((error: unknown) => {
-            console.error('Could not reclaim .torrent file association', error)
-        })
+        if (!app.commandLine.hasSwitch('test')) {
+            void reclaimTorrentFileAssociation().catch((error: unknown) => {
+                console.error('Could not reclaim .torrent file association', error)
+            })
+        }
         queuePendingLaunchArgs(process.argv)
         queuePendingLaunchArgs(pendingOpenFilePaths.splice(0))
         configureSystemStartup(settings.getAllSettings().systemStartup)

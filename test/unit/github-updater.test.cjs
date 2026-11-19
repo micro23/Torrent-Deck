@@ -34,7 +34,7 @@ function fixture(packaged = true, macRelease, response) {
     './electorrent': { getWindow: () => null },
     './logger': { error() {}, verbose() {} },
     fs: { ...fs, readFileSync: filename => filename === '/mock-app/package.json' ? JSON.stringify({ manualMacUpdates: true }) : fs.readFileSync(filename) },
-    request: (_url, callback) => callback(null, { statusCode: response?.statusCode ?? 200 }, response?.body ?? JSON.stringify(macRelease || { name: '99.0.0', url: 'http://localhost/download' })),
+    '@cypress/request': (_url, callback) => callback(null, { statusCode: response?.statusCode ?? 200 }, response?.body ?? JSON.stringify(macRelease || { name: '99.0.0', url: 'http://localhost/download' })),
   }
   const source = fs.readFileSync('src/main/lib/update.ts', 'utf8')
   const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, esModuleInterop: true } }).outputText
