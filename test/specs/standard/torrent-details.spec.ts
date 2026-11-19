@@ -187,6 +187,14 @@ describe("torrent details", function () {
             && panel.scrollWidth <= panel.clientWidth + 1
             && headers.length > 8 && headers.every(header => header.getBoundingClientRect().width >= 12)
         })).equals(true)
+        const progress = await page.$("#torrentTable th[data-col='percent']")
+        const divider = await progress?.$(".rz-handle")
+        if (!progress || !divider) throw new Error("Progress column divider unavailable")
+        const startWidth = (await progress.boundingBox())?.width ?? 0
+        await divider.focus()
+        await page.keyboard.press("ArrowRight")
+        await eventually(async () => (await progress.boundingBox())?.width ?? 0)
+          .satisfies("resize a middle column in the narrow library", width => width > startWidth + 2)
       } finally {
         await page.setViewport({ width: 1600, height: 1000 })
       }

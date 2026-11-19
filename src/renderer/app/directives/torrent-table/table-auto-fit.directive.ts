@@ -90,7 +90,7 @@ export class TableAutoFitDirective implements IDirective {
         let frame = 0
         let layout: ColumnLayout | undefined
         let dragging: { handle: HTMLElement, index: number, start: number, scale: number, layout: ColumnLayout } | undefined
-        let preferred: number[] = []
+        let preferred: number[] | undefined
         let signature = ''
         const storageKey = () => `torrent-deck.fit-columns.${table.id}.${controller.profile || 'default'}`
         const headers = () => Array.from(table.tHead?.rows[0]?.cells || [])
@@ -118,9 +118,9 @@ export class TableAutoFitDirective implements IDirective {
             const nextSignature = storageKey() + keys.join('|')
             if (signature !== nextSignature) {
                 signature = nextSignature
-                try { preferred = JSON.parse(localStorage.getItem(signature) || '[]') } catch { preferred = [] }
+                try { preferred = JSON.parse(localStorage.getItem(signature) || '[]') } catch { preferred = undefined }
                 if (!Array.isArray(preferred) || preferred.length !== columns.length || preferred.some(width => !Number.isFinite(width) || width <= 0)) {
-                    preferred = hints.map(([width]) => width)
+                    preferred = undefined
                 }
             }
             table.style.setProperty('width', '100%', 'important')
@@ -134,7 +134,13 @@ export class TableAutoFitDirective implements IDirective {
             // instead of pinning every divider at a compressed minimum.
             const resizeRoom = Math.min(32, budget * .08)
             const floorScale = Math.min(1, (budget - resizeRoom) / (minimumTotal || 1))
-            const flexible = fitColumnWidths(preferred.filter((_width, index) => !fixed[index]), budget, minimum.map(floor => floor * floorScale))
+            const scaledMinimum = minimum.map(floor => floor * floorScale)
+            // Share some room across the default columns. Left to the usual
+            // weights, the Name column would take it all in a crowded pane.
+            const defaultAllowance = !preferred && floorScale < 1 ? resizeRoom / (2 * minimum.length) : 0
+            const allocationMinimum = scaledMinimum.map(floor => floor + defaultAllowance)
+            const weights = preferred ?? hints.map(([width]) => width)
+            const flexible = fitColumnWidths(weights.filter((_width, index) => !fixed[index]), budget, allocationMinimum)
             let flexibleIndex = 0
             const widths = columns.map((_column, index) => fixed[index] ? fixedWidth : flexible[flexibleIndex++])
             const floors = hints.map(([_width, floor], index) => fixed[index] ? fixedWidth : floor * floorScale)
@@ -154,7 +160,10 @@ export class TableAutoFitDirective implements IDirective {
             })
         }
         const schedule = () => { if (!frame) frame = requestAnimationFrame(fit) }
-        const save = () => { try { localStorage.setItem(signature, JSON.stringify(preferred)) } catch { /* Fit still works without storage. */ } }
+        const save = () => {
+            if (!preferred) return
+            try { localStorage.setItem(signature, JSON.stringify(preferred)) } catch { /* Fit still works without storage. */ }
+        }
         const handleFrom = (event: Event) => event.target instanceof HTMLElement ? event.target.closest<HTMLElement>('.rz-handle') : null
         const resize = (start: ColumnLayout, index: number, delta: number) => {
             preferred = resizeFittedColumn(start.widths, start.floors, start.fixed, index, delta)
