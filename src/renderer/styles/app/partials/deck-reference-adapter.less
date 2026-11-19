@@ -739,3 +739,25 @@ html[data-theme][data-theme] body #page-torrents #torrentTable .terminal-name-ce
     flex-shrink: 0;
     margin-inline: 0;
 }
+
+// Leave more room for values when the sidebar or content zoom narrows the table.
+html[data-theme][data-theme] body #page-torrents #torrentTable.fit-columns {
+    thead th {
+        padding-inline: 4px 13px !important;
+        line-height: 1.2;
+    }
+    thead th[data-col='decodedName'] {
+        text-align: left !important;
+        padding-left: 8px !important;
+    }
+    tbody td {
+        padding-inline: 4px !important;
+        line-height: 1.3;
+    }
+    &.fit-columns-tight thead th { padding-inline: 2px 9px !important; }
+    &.fit-columns-tight tbody td { padding-inline: 2px !important; }
+    &.compact tbody td {
+        height: 26px !important;
+        padding-block: 2px !important;
+    }
+}

@@ -1,22 +1,43 @@
-import { fitColumnWidths } from '@renderer/app/lib/fit-column-widths'
+import { fitColumnWidths, resizeFittedColumn } from '@renderer/app/lib/fit-column-widths'
 import type { IAugmentedJQuery, IDirective, IDirectiveFactory, IScope } from 'angular'
 
 interface ResizeController {
-    resizer: {
-        handleMiddleware(handle: JQuery, column: HTMLElement): HTMLElement | JQuery
-        getMinWidth(column: HTMLElement): number
-        onEndDrag(): void
-        calculate(originalWidth: number, delta: number): number
-        intervene?: {
-            selector(column: HTMLElement): JQuery
-            calculator?(originalWidth: number, delta: number): number
-        }
-    }
-    saveColumnSizes(): void
+    profile?: string
+    resizer?: object
+}
+
+interface ColumnLayout {
+    columns: HTMLTableCellElement[]
+    widths: number[]
+    floors: number[]
+    fixed: boolean[]
+}
+
+// Default proportions and readable minimums for the main library. Details use
+// their own sizes because their text, number, and action columns differ.
+const librarySizes: Record<string, [preferred: number, minimum: number]> = {
+    decodedName: [300, 110],
+    statusMessage: [108, 108],
+    size: [78, 58],
+    percent: [110, 68],
+    downloadSpeed: [108, 78],
+    uploadSpeed: [96, 70],
+    uploaded: [92, 65],
+    eta: [72, 51],
+    ratio: [63, 46],
+    peersConnected: [72, 52],
+    seedsConnected: [72, 52],
+    seedingTime: [87, 64],
+    dateAdded: [120, 78],
+    dateCompleted: [136, 86],
+}
+const detailSizes: Record<string, [preferred: number, minimum: number]> = {
+    name: [270, 90], path: [250, 90], url: [300, 110], message: [140, 60],
+    ip: [158, 80], client: [140, 65], torrentDetailsTrackersActions: [105, 54],
 }
 
 function tableScale(table: HTMLTableElement) {
-    return table.offsetWidth ? table.getBoundingClientRect().width / table.offsetWidth : 1
+    return table.getBoundingClientRect().width / table.offsetWidth || 1
 }
 
 function contentWidth(table: HTMLTableElement, column: HTMLTableCellElement) {
@@ -28,7 +49,7 @@ function contentWidth(table: HTMLTableElement, column: HTMLTableCellElement) {
     probe.style.setProperty('min-width', '0', 'important')
     probe.setAttribute('aria-hidden', 'true')
     const body = probe.createTBody()
-    const cells = Array.from(table.rows).map(row => row.cells[column.cellIndex]).filter(Boolean)
+    const cells = Array.from(table.rows).map(row => row.cells[column.cellIndex]).filter(cell => cell && cell.colSpan === 1)
     for (const cell of cells) {
         const clone = cell.cloneNode(true) as HTMLTableCellElement
         clone.style.width = 'auto'
@@ -46,9 +67,7 @@ function contentWidth(table: HTMLTableElement, column: HTMLTableCellElement) {
     }
     table.parentElement!.appendChild(probe)
     try {
-        const width = Math.max(...Array.from(probe.rows).map(row => row.cells[0].getBoundingClientRect().width), 0)
-        const style = getComputedStyle(column)
-        return Math.ceil(width / tableScale(table) - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight)) + 8
+        return Math.ceil(probe.getBoundingClientRect().width / tableScale(table)) + 8
     } finally {
         probe.remove()
     }
@@ -66,68 +85,117 @@ export class TableAutoFitDirective implements IDirective {
     link(scope: IScope, element: IAugmentedJQuery, _attrs: unknown, controller: ResizeController) {
         const table = element[0] as HTMLTableElement
         table.classList.add('fit-columns')
+        const isLibrary = table.id === 'torrentTable'
+        const sizeHints = isLibrary ? librarySizes : detailSizes
         let frame = 0
-        let dragging: { header: HTMLTableCellElement, start: number, widths: number[] } | null = null
+        let layout: ColumnLayout | undefined
+        let dragging: { handle: HTMLElement, index: number, start: number, scale: number, layout: ColumnLayout } | undefined
         let preferred: number[] = []
         let signature = ''
-        const storageKey = () => `torrent-deck.fit-columns.${table.id}.${(controller as any).profile || 'default'}`
+        const storageKey = () => `torrent-deck.fit-columns.${table.id}.${controller.profile || 'default'}`
         const headers = () => Array.from(table.tHead?.rows[0]?.cells || [])
+        const getColumnKey = (column: HTMLTableCellElement) => column.dataset.col || column.id || column.textContent?.trim() || ''
+        const labelDetailRows = (columns: HTMLTableCellElement[]) => {
+            const labels = columns.map(column => column.textContent?.trim() || '')
+            for (const row of Array.from(table.tBodies[0]?.rows || [])) {
+                Array.from(row.cells).forEach((cell, index) => {
+                    if (cell.colSpan !== 1) return
+                    if (cell.dataset.label !== labels[index]) cell.dataset.label = labels[index] || ''
+                })
+            }
+        }
         const fit = () => {
+            if (frame) cancelAnimationFrame(frame)
             frame = 0
             const columns = headers()
-            if (!columns.length || !table.parentElement?.clientWidth) return
-            const nextSignature = storageKey() + columns.map(col => col.dataset.col || col.id || col.textContent?.trim()).join('|')
+            const available = table.parentElement?.clientWidth || 0
+            if (!columns.length || !available) {
+                layout = undefined
+                return
+            }
+            const keys = columns.map(getColumnKey)
+            const hints = keys.map(key => sizeHints[key] || [80, 48])
+            const nextSignature = storageKey() + keys.join('|')
             if (signature !== nextSignature) {
                 signature = nextSignature
                 try { preferred = JSON.parse(localStorage.getItem(signature) || '[]') } catch { preferred = [] }
                 if (!Array.isArray(preferred) || preferred.length !== columns.length || preferred.some(width => !Number.isFinite(width) || width <= 0)) {
-                    preferred = columns.map(col => /name|torrent|url|path/i.test(col.dataset.col || col.textContent || '') ? 280 : col.querySelector('input') ? 30 : 90)
+                    preferred = hints.map(([width]) => width)
                 }
             }
             table.style.setProperty('width', '100%', 'important')
             table.style.setProperty('min-width', '0', 'important')
-            const available = table.parentElement.clientWidth
-            const fixed = columns.map(col => col.querySelector('input[type="checkbox"]') ? Math.min(30, available / columns.length) : 0)
-            const flexibleColumns = columns.filter((_column, index) => !fixed[index])
-            const minimum = flexibleColumns.map(column => column.dataset.col === 'statusMessage' ? 108 : 32)
-            const flexible = fitColumnWidths(preferred.filter((_width, index) => !fixed[index]), Math.max(0, available - fixed.reduce((sum, width) => sum + width, 0)), minimum)
+            const fixed = columns.map(column => !!column.querySelector('input[type="checkbox"]'))
+            const fixedWidth = Math.min(30, available / columns.length)
+            const budget = available - fixed.filter(Boolean).length * fixedWidth
+            const minimum = hints.flatMap(([_width, floor], index) => fixed[index] ? [] : [floor])
+            const minimumTotal = minimum.reduce((sum, width) => sum + width, 0)
+            // When the pane is crowded, keep a small amount of width adjustable
+            // instead of pinning every divider at a compressed minimum.
+            const resizeRoom = Math.min(32, budget * .08)
+            const floorScale = Math.min(1, (budget - resizeRoom) / (minimumTotal || 1))
+            const flexible = fitColumnWidths(preferred.filter((_width, index) => !fixed[index]), budget, minimum.map(floor => floor * floorScale))
             let flexibleIndex = 0
-            columns.forEach((column, index) => column.style.setProperty('width', `${(fixed[index] || flexible[flexibleIndex++]) / available * 100}%`, 'important'))
-            for (const row of Array.from(table.tBodies[0]?.rows || [])) {
-                Array.from(row.cells).forEach((cell, index) => {
-                    cell.dataset.label = columns[index]?.textContent?.trim() || ''
-                })
-            }
+            const widths = columns.map((_column, index) => fixed[index] ? fixedWidth : flexible[flexibleIndex++])
+            const floors = hints.map(([_width, floor], index) => fixed[index] ? fixedWidth : floor * floorScale)
+            layout = { columns, widths, floors, fixed }
+            table.classList.toggle('fit-columns-tight', floorScale < .8)
+            columns.forEach((column, index) => {
+                column.style.setProperty('width', `${widths[index] / available * 100}%`, 'important')
+                const handle = column.querySelector<HTMLElement>('.rz-handle')
+                if (!handle || fixed[index]) return
+                handle.tabIndex = 0
+                handle.setAttribute('role', 'separator')
+                handle.setAttribute('aria-orientation', 'vertical')
+                handle.setAttribute('aria-label', `Resize ${column.textContent?.trim() || keys[index]} column`)
+                handle.setAttribute('aria-valuenow', String(Math.round(widths[index])))
+                handle.setAttribute('aria-valuemin', String(Math.round(floors[index])))
+                handle.setAttribute('aria-valuemax', String(Math.round(available)))
+            })
         }
         const schedule = () => { if (!frame) frame = requestAnimationFrame(fit) }
         const save = () => { try { localStorage.setItem(signature, JSON.stringify(preferred)) } catch { /* Fit still works without storage. */ } }
-        const onMouseDown = (event: MouseEvent) => {
-            const header = event.target instanceof Element ? event.target.closest('.rz-handle')?.closest('th') : null
-            if (!header || event.button !== 0) return
-            event.preventDefault()
-            event.stopImmediatePropagation()
-            dragging = { header, start: event.clientX, widths: headers().map(col => col.getBoundingClientRect().width) }
-        }
-        const onMove = (event: MouseEvent) => {
-            if (!dragging) return
-            const index = headers().indexOf(dragging.header)
-            const adjacent = index === dragging.widths.length - 1 ? index - 1 : index + 1
-            if (adjacent < 0) return
-            const widths = [...dragging.widths]
-            const minimum = Math.min(24, (widths[index] + widths[adjacent]) / 3)
-            const delta = Math.max(minimum - widths[index], Math.min(widths[adjacent] - minimum, event.clientX - dragging.start))
-            widths[index] += delta
-            widths[adjacent] -= delta
-            preferred = widths
+        const handleFrom = (event: Event) => event.target instanceof HTMLElement ? event.target.closest<HTMLElement>('.rz-handle') : null
+        const resize = (start: ColumnLayout, index: number, delta: number) => {
+            preferred = resizeFittedColumn(start.widths, start.floors, start.fixed, index, delta)
             schedule()
         }
-        const onUp = () => { if (dragging) { dragging = null; fit(); save() } }
-        const onDoubleClick = (event: MouseEvent) => {
-            const header = event.target instanceof Element ? event.target.closest('.rz-handle')?.closest('th') : null
-            if (!header) return
+        const onMouseDown = (event: MouseEvent) => {
+            const handle = handleFrom(event)
+            if (!handle || event.button !== 0) return
+            fit()
+            const header = handle.closest('th')
+            const index = header ? layout?.columns.indexOf(header) ?? -1 : -1
+            if (!layout || index < 0) return
             event.preventDefault()
             event.stopImmediatePropagation()
-            preferred[headers().indexOf(header)] = Math.max(32, contentWidth(table, header))
+            if (layout.fixed[index]) return
+            handle.classList.add('rz-handle-active')
+            dragging = { handle, index, start: event.clientX, scale: tableScale(table), layout }
+        }
+        const onMove = (event: MouseEvent) => {
+            if (!dragging || !table.contains(dragging.handle)) return
+            resize(dragging.layout, dragging.index, (event.clientX - dragging.start) / dragging.scale)
+        }
+        const onUp = () => {
+            if (!dragging) return
+            dragging.handle.classList.remove('rz-handle-active')
+            dragging = undefined
+            if (frame) fit()
+            save()
+        }
+        const onAdjust = (event: MouseEvent | KeyboardEvent) => {
+            const header = handleFrom(event)?.closest('th')
+            if (!header) return
+            const key = event instanceof KeyboardEvent ? event.key : 'Enter'
+            if (!['Enter', 'ArrowLeft', 'ArrowRight'].includes(key)) return
+            fit()
+            const index = layout?.columns.indexOf(header) ?? -1
+            if (!layout || index < 0 || layout.fixed[index]) return
+            event.preventDefault()
+            event.stopImmediatePropagation()
+            const delta = key === 'Enter' ? contentWidth(table, header) - layout.widths[index] : key === 'ArrowLeft' ? -12 : 12
+            resize(layout, index, delta)
             fit()
             save()
         }
@@ -136,13 +204,22 @@ export class TableAutoFitDirective implements IDirective {
         }
         const observer = new ResizeObserver(schedule)
         if (table.parentElement) observer.observe(table.parentElement)
-        const mutations = new MutationObserver(schedule)
-        mutations.observe(table, { childList: true, subtree: true })
+        const mutations = new MutationObserver(() => {
+            schedule()
+            if (!isLibrary) labelDetailRows(headers())
+        })
+        mutations.observe(table, { childList: true })
+        if (table.tHead) mutations.observe(table.tHead, { childList: true, subtree: true, characterData: true })
+        if (!isLibrary && table.tBodies[0]) {
+            labelDetailRows(headers())
+            mutations.observe(table.tBodies[0], { childList: true, subtree: true })
+        }
         const unwatch = scope.$watch(() => controller.resizer, schedule)
         document.addEventListener('mousemove', onMove)
         document.addEventListener('mouseup', onUp)
         schedule()
-        table.addEventListener('dblclick', onDoubleClick)
+        table.addEventListener('dblclick', onAdjust)
+        table.addEventListener('keydown', onAdjust, true)
         table.addEventListener('mousedown', onMouseDown, true)
         table.addEventListener('click', onClick, true)
         scope.$on('$destroy', () => {
@@ -152,7 +229,8 @@ export class TableAutoFitDirective implements IDirective {
             cancelAnimationFrame(frame)
             document.removeEventListener('mousemove', onMove)
             document.removeEventListener('mouseup', onUp)
-            table.removeEventListener('dblclick', onDoubleClick)
+            table.removeEventListener('dblclick', onAdjust)
+            table.removeEventListener('keydown', onAdjust, true)
             table.removeEventListener('mousedown', onMouseDown, true)
             table.removeEventListener('click', onClick, true)
         })

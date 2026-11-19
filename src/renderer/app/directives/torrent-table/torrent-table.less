@@ -87,3 +87,11 @@ html[data-theme] body #torrentTable.fit-columns [data-col='statusMessage'] {
     white-space: nowrap !important;
     overflow-wrap: normal;
 }
+html[data-theme] body #torrentTable.fit-columns.fit-columns-tight [data-col='statusMessage'] {
+    white-space: normal !important;
+    overflow-wrap: anywhere;
+}
+html[data-theme] body .ui.table.fit-columns .rz-handle:focus-visible {
+    outline: 2px solid var(--accent, @primaryColor);
+    outline-offset: -2px;
+}
