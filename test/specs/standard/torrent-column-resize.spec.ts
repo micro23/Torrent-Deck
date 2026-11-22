@@ -29,6 +29,15 @@ describe("torrent column resizing", function () {
       let grip = await handle?.boundingBox()
       if (!bounds || !grip) throw new Error("Column resize handle not visible")
       const initialWidth = bounds.width
+      const selectAll = await page.$("#torrentTable .torrent-select-results")
+      const selectionBox = await selectAll?.boundingBox()
+      if (!selectionBox) throw new Error("Filtered selection control not visible")
+      const xSelect = selectionBox.x + selectionBox.width / 2
+      const ySelect = selectionBox.y + selectionBox.height / 2
+      await page.mouse.click(xSelect, ySelect)
+      await page.waitForSelector("#torrentTable tbody tr.active")
+      await page.mouse.click(xSelect, ySelect)
+      await page.waitForSelector("#torrentTable tbody tr.active", { hidden: true })
       await page.mouse.click(grip.x + grip.width / 2, grip.y + grip.height / 2, { clickCount: 2 })
       bounds = await target!.boundingBox()
       grip = await handle!.boundingBox()
