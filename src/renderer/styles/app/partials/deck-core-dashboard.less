@@ -1,0 +1,183 @@
+// Connect the reference materials to the desktop's sidebar, title bar and table.
+deck-stat-cards, .deck-telemetry, ocean-instruments { display: contents; }
+.deck-telemetry.sunset-ticket-strip { display: block; }
+
+html[data-theme]:is([data-theme="dark"], [data-theme="light"], [data-theme="ocean"], [data-theme="sunset"]) {
+    --deck-art: none;
+}
+
+html[data-theme="dark"][data-theme] body #page-torrents {
+    --torrent-sidebar-width: clamp(120px, 15vw, 184px);
+    &.is-sidebar-collapsed { --torrent-sidebar-width: 76px; }
+    .main-content { background: #151628 !important; border-color: var(--midnight-hairline) !important; }
+    .midnight-observations {
+        flex: 0 0 auto;
+        order: 1;
+        margin: 6px 12px;
+        grid-template-columns: clamp(84px, 16vw, 220px) minmax(0, 1fr);
+        gap: 10px;
+    }
+    .midnight-sky { --midnight-dial-size: clamp(75px, 16vh, 152px); }
+    .midnight-telemetry { padding: 8px 12px 8px 0; }
+    .midnight-observations .deck-stats-grid { margin: 0 !important; }
+    .midnight-observations .deck-stats-grid .deck-stat-card {
+        min-height: 0 !important;
+        height: clamp(58px, 10vh, 91px) !important;
+        padding: 8px !important;
+        background: transparent !important;
+        border: 0 !important;
+        border-left: 1px solid var(--midnight-hairline) !important;
+        box-shadow: none !important;
+    }
+    .midnight-observations .deck-stat-copy strong {
+        font-size: clamp(13px, 1.65vw, 28px) !important;
+        overflow-wrap: anywhere;
+    }
+    .midnight-observations .deck-stat-chart { opacity: .7; }
+    .status-bar { order: 2; }
+}
+@media (min-width: 761px) {
+    html[data-theme="dark"][data-theme] body #page-torrents {
+        torrent-sidebar {
+            left: auto;
+            right: 0;
+            border-right: 0;
+            border-left: 1px solid var(--midnight-hairline);
+        }
+        torrent-sidebar + .main-panel { float: left; }
+    }
+}
+@media (max-height: 620px) {
+    html[data-theme="dark"][data-theme] body #page-torrents .midnight-observations .deck-stats-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+        .deck-stat-chart, .deck-stat-copy small { display: none !important; }
+    }
+    html[data-theme="dark"][data-theme] body #page-torrents .midnight-sky { height: 92px; }
+}
+
+html[data-theme="light"][data-theme] body {
+    --paper-sidebar-size: clamp(124px, 16.5vw, 254px);
+    .main.wrapper:has(#page-torrents) {
+        --deck-sidebar-size: var(--paper-sidebar-size) !important;
+        padding: 0 !important;
+        height: 100% !important;
+        &:has(#page-torrents.is-sidebar-collapsed) { --deck-sidebar-size: 72px !important; }
+    }
+    .main.wrapper:has(#page-torrents) :is(.app-content, #page-torrents, torrent-sidebar) {
+        background: transparent !important;
+    }
+    #page-torrents {
+        --torrent-sidebar-width: var(--paper-sidebar-size);
+        &.is-sidebar-collapsed { --torrent-sidebar-width: 72px; }
+        .main-panel { padding-inline-start: clamp(6px, 3.8vw, 60px); }
+        .deck-overview { overflow: visible !important; }
+        .deck-control-strip {
+            height: 48px !important;
+            min-height: 48px !important;
+            margin: 0 !important;
+        }
+        .sidebar-scroll > .nav:first-of-type > .nav-item {
+            border-radius: 0;
+            border-bottom: 1px solid var(--book-rule);
+            color: var(--book-ink);
+        }
+        .sidebar-scroll > .nav > .nav-item > .torrent-sidebar-item-label {
+            color: var(--book-ink) !important;
+        }
+        .sidebar-scroll > .nav > .nav-item:not(.active, :hover) { background: #fff9e544 !important; }
+        .deck-stats-grid .deck-stat-card > .deck-stat-icon,
+        .deck-stats-grid .deck-stat-chart { display: none !important; }
+        .deck-stats-grid .deck-stat-card:nth-child(n) { padding: 12px !important; }
+        .notebook-brand {
+            min-height: 46px !important;
+            background: url('../../assets/deck/paper/signature.webp') right center / auto 35px no-repeat;
+        }
+        .main-content {
+            background: var(--paper-column-lines, linear-gradient(transparent, transparent)), var(--book-ruling) !important;
+            background-origin: content-box !important;
+        }
+    }
+}
+
+html[data-theme="ocean"][data-theme] body #page-torrents {
+    --torrent-sidebar-width: clamp(126px, 15vw, 208px);
+    &.is-sidebar-collapsed { --torrent-sidebar-width: 74px; }
+    .ocean-instruments { margin: 0 12px 8px; }
+    .ocean-legend-item > * { width: 100%; }
+    .main-content {
+        background: linear-gradient(120deg, #102930, #0a1e23 75%) !important;
+        border-color: #528583 !important;
+    }
+    .ocean-instrument-body { align-content: start; }
+}
+@media (min-width: 1101px) {
+    html[data-theme="ocean"][data-theme] body #page-torrents .main-panel {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) clamp(220px, 23%, 370px);
+        grid-template-rows: auto minmax(0, 1fr) auto auto auto;
+        > .deck-overview { grid-row: 1; grid-column: ~"1 / -1"; }
+        > .main-content { grid-row: 2; grid-column: 1; min-width: 0; margin-right: 0; }
+        .ocean-instruments { grid-row: 2; grid-column: 2; overflow-y: auto; }
+        > torrent-details-panel { grid-row: 3; grid-column: ~"1 / -1"; min-width: 0; }
+        > .torrent-selection-menu { grid-row: 4; grid-column: ~"1 / -1"; justify-self: center; }
+        > .status-bar { grid-row: 5; grid-column: ~"1 / -1"; min-width: 0; }
+        .ocean-porthole { max-width: 215px; margin-inline: auto; }
+    }
+}
+@media (max-width: 1100px) {
+    html[data-theme="ocean"][data-theme] body #page-torrents .ocean-instruments {
+        max-height: 37vh;
+        overflow-y: auto;
+    }
+}
+
+html[data-theme="sunset"][data-theme] body #page-torrents {
+    --torrent-sidebar-width: clamp(128px, 16vw, 218px);
+    &.is-sidebar-collapsed { --torrent-sidebar-width: 72px; }
+    .deck-library-heading { display: flex !important; min-height: 0; padding-block: 2px; }
+    .deck-library-heading h2 { font-family: var(--sunset-print); }
+    .sunset-ticket-strip { display: grid; grid-template-columns: minmax(130px, 30%) minmax(0, 1fr); }
+    .sunset-ticket-strip .sunset-masthead { min-width: 0; height: 100%; min-height: 85px; }
+    .sunset-ticket-strip .sunset-poster-title {
+        max-width: 100%;
+        left: 8%;
+        font-size: clamp(25px, 6.8vw, 104px);
+    }
+    .sunset-ticket-strip .deck-stats-grid { min-width: 0; }
+    .sunset-ticket-strip .deck-stat-copy strong { overflow-wrap: anywhere; }
+    .sunset-ticket-strip .deck-stat-card > .deck-stat-icon { display: none !important; }
+    .sunset-ticket-strip .deck-stats-grid .deck-stat-card:nth-child(n) { padding: 12px !important; }
+}
+@media (min-width: 1051px) {
+    html[data-theme="sunset"][data-theme] body #page-torrents {
+        display: flex;
+        flex-direction: column;
+        > torrent-sidebar {
+            position: relative; inset: auto; width: 100% !important; height: auto; max-height: none; flex: 0 0 auto;
+            transition: none;
+            background: var(--sunset-grain), #f4dfb7 !important;
+            border-bottom: 2px solid #7e4531;
+        }
+        > .main-panel { float: none; width: 100% !important; max-width: none !important; min-height: 0; height: auto; flex: 1 1 auto; transition: none; }
+        .torrent.sidebar { flex-direction: row; align-items: center; width: 100% !important; height: auto !important; box-shadow: none !important; background: transparent !important; }
+        .sidebar-scroll { display: flex; flex-direction: row; align-items: center; min-width: 0; gap: 6px; padding: 4px 12px !important; overflow: auto; }
+        .sidebar-scroll > :is(.core-identity, .deck-sidebar-caption) { display: none !important; }
+        .sidebar-scroll > .deck-sidebar-add { flex: none; width: auto !important; min-width: 0 !important; margin: 0 !important; }
+        .sidebar-scroll > .nav { display: flex !important; flex-direction: row; align-items: center; flex: none; padding: 0 !important; margin: 0; }
+        .sidebar-scroll > .nav .nav-item {
+            display: flex !important; flex: none; width: auto !important; margin: 0 !important; min-height: 30px;
+            border-radius: 0; border-right: 1px solid #c09069; padding: 4px 8px; color: #492e24;
+        }
+        .sidebar-scroll > .nav .nav-item .label { flex: none; }
+        .torrent-sidebar-footer { min-height: 38px; padding: 0 10px !important; background: transparent !important; }
+    }
+}
+
+html[data-theme="dark"][data-theme] body #page-torrents .torrent-details-tabs.ui.menu,
+html[data-theme="sunset"][data-theme] body #page-torrents .torrent-details-tabs.ui.menu {
+    border-bottom-color: var(--line-strong) !important;
+}
+
+html[data-theme="light"][data-theme] :is(#uploadTorrentModal, #page-settings .ui.stretched.segment) {
+    background: var(--book-fibres), var(--surface) !important;
+}

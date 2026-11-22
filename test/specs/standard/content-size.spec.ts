@@ -135,6 +135,27 @@ describe("main content size", function () {
         const sidebar = await bounds("torrent-sidebar")
         assert.isAtMost(sidebar.y + sidebar.height, rail.y, "Darkhand: sidebar stays above the full-width rail")
       }
+      if (theme === "dark") {
+        const sidebar = await bounds("torrent-sidebar")
+        const library = await bounds("#page-torrents .main-content")
+        const dial = await bounds(".midnight-sky svg")
+        assert.isAtLeast(sidebar.x, library.x + library.width - 1, "Midnight navigation sits to the right")
+        assert.isAbove(dial.y, library.y, "Midnight telemetry follows the list")
+      } else if (theme === "light") {
+        const ledger = $("#page-torrents .main-content")
+        assert.include(String((await ledger.getCSSProperty("background-image")).value), "linear-gradient(90deg")
+      } else if (theme === "ocean") {
+        const instruments = await bounds(".ocean-instruments")
+        const library = await bounds("#page-torrents .main-content")
+        assert.isAtLeast(instruments.x, library.x + library.width - 1, "Ocean instruments leave the library its own pane")
+        await $(".ocean-sonar").waitForDisplayed()
+        await $(".ocean-trace svg").waitForDisplayed()
+      } else if (theme === "sunset") {
+        const nav = await bounds("torrent-sidebar")
+        const library = await bounds("#page-torrents .main-content")
+        assert.isAtLeast(nav.width, library.width, "Sunset uses a horizontal navigation rail")
+        await $(".sunset-ticket-strip .sunset-masthead").waitForDisplayed()
+      }
       assert.isAtLeast(disk.x, rail.x, `${theme}: disk inside rail`)
       assert.isAbove(sync.x, disk.x, `${theme}: sync follows disk`)
       assert.isAbove(ip.x, sync.x, `${theme}: IP follows sync`)

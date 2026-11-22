@@ -152,6 +152,10 @@ import { ServerSelectionDirective } from "@renderer/app/directives/server-select
 torrentApp.directive("serverSelection", ServerSelectionDirective.getInstance())
 import { TorrentsPageDirective } from "@renderer/app/directives/torrents-page/torrents-page.directive"
 torrentApp.directive("torrentsPage", TorrentsPageDirective.getInstance())
+import deckStatCards from "@renderer/app/directives/torrents-page/deck-stat-cards.template.html"
+import oceanInstruments from "@renderer/app/directives/torrents-page/ocean-instruments.template.html"
+torrentApp.directive("deckStatCards", () => ({ restrict: "E", template: deckStatCards }))
+torrentApp.directive("oceanInstruments", () => ({ restrict: "E", template: oceanInstruments }))
 import { TorrentSidebarDirective } from "@renderer/app/directives/torrent-sidebar/torrent-sidebar.directive"
 torrentApp.directive("torrentSidebar", TorrentSidebarDirective.getInstance())
 import { TorrentSidebarSectionDirective } from "@renderer/app/directives/torrent-sidebar/torrent-sidebar-section.directive"

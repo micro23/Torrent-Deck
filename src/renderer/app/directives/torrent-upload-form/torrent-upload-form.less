@@ -3,4 +3,18 @@ torrent-upload-form {
     .upload-torrent-heading { display: flex; align-items: baseline; gap: 1em; }
     .upload-torrent-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .upload-torrent-size { flex-shrink: 0; margin-left: auto; color: @lightTextColor; font-weight: normal; }
+
+    @media (max-width: 550px) {
+        .ui.form .fields > .field {
+            min-width: 0;
+            overflow-wrap: anywhere;
+        }
+
+        .ui.form .fields:has(> .upload-location-field) {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+
+            > .field { width: auto !important; }
+        }
+    }
 }
