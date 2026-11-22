@@ -1,5 +1,13 @@
 # Changes since the Electorrent fork
 
+## 2.19.26 — Deluge Deck dashboard redesigns
+
+- Rebuild Midnight around the brass observatory dial, a right-hand navigation rail, and session telemetry below the torrent list.
+- Give Paper a ring-bound notebook, new artwork, and ledger rules that follow the torrent column dividers.
+- Add Ocean’s live bandwidth traces, connection instruments, and a library sonar with state filters and contacts grouped by completion.
+- Refresh Sunset with desert railway artwork, a ticket telemetry strip, a transfer manifest, and a horizontal navigation rail on wide windows.
+- Record transfer traces from successful server snapshots and reset them when changing profiles. Update the four theme-picker previews.
+
 ## 2.19.25 — desktop layout, file handling and upstream updates
 
 - Sync Deluge Deck 1.0.104’s Paper, Ocean, and Sunset redesigns with refreshed artwork, sidebar and detail styling, and gallery previews.

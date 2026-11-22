@@ -10,7 +10,7 @@ function createPage() {
   const timers = new Set()
   const stored = new Map()
   const alerts = []
-  const page = { $on: (event, callback) => events.set(event, callback) }
+  const page = { $on: (event, callback) => events.set(event, callback), $watch() {} }
   const root = { $on: () => () => {}, $applyAsync() {}, $emit() {} }
   const timeout = callback => { timers.add(callback); return callback }
   timeout.cancel = callback => timers.delete(callback)
@@ -25,8 +25,12 @@ function createPage() {
     exports,
     localStorage: { getItem: key => stored.get(key), setItem: (key, value) => stored.set(key, value) },
     window: { performance, electorrent: { app: { getMeta: async () => ({}) }, bittorrent: { setSelectedTorrents() {} } } },
-    require: name => name === 'fuse.js' ? require(name) : name.endsWith('torrent-label-filter')
-      ? { matchesLabelFilter: (label, filter) => !filter || label === filter } : {},
+    require: name => {
+      if (name === 'fuse.js') return require(name)
+      if (name === './ocean-telemetry') return require('../../src/renderer/app/directives/torrents-page/ocean-telemetry.ts')
+      if (name.endsWith('torrent-label-filter')) return { matchesLabelFilter: (label, filter) => !filter || label === filter }
+      return {}
+    },
   })
   new exports.TorrentsPageController(root, page, timeout, () => {}, q, {}, {
     alert: (...args) => alerts.push(args), enableAll() {}, disableAll() {},
@@ -63,6 +67,34 @@ test('the transfer chart switches to each server’s own saved history', async (
   await page.update()
   assert.equal(page.deckChartMax, 660 * 1.2)
   assert.equal(JSON.parse(stored.get('electorrent-deck-history:first'))[0][2], 220)
+})
+
+test('Ocean telemetry groups actual torrents and samples each server separately', async () => {
+  const { events, page, root } = createPage()
+  const row = (id, percent, uploadSpeed) => ({
+    id, percent, uploadSpeed, downloadSpeed: 0,
+    isStatusDownloading: () => false, isStatusSeeding: () => true,
+    isStatusPaused: () => false, isStatusQueued: () => false, isStatusCompleted: () => true,
+    isStatusStopped: () => false, isStatusError: () => false,
+  })
+  root.deckTheme = 'ocean'
+  root.$server = { id: 'ocean', columns: [] }
+  root.$btclient = { torrents: async () => ({
+    all: [row('1', 970, 100), row('2', 990, 200)], dirty: true,
+    sessionStats: { download_rate: 800, upload_rate: 300, num_connections: 6, max_num_connections: 12 },
+  }) }
+  await page.update()
+  assert.equal(page.oceanLibrary.sectors[1].count, 2)
+  assert.equal(page.oceanLibrary.contacts.length, 1)
+  assert.equal(page.oceanLibrary.contacts[0].progress, 98)
+  assert.equal(page.oceanLibrary.peak, 300)
+  assert.equal(page.oceanTrace.peak, 800)
+  assert.equal(page.oceanConnectionFill, 50)
+  page.changeSorting({ sortKey: 'size', descending: true })
+  assert.equal(page.oceanTrace.samples, 1)
+  events.get('wipe:torrents')()
+  assert.equal(page.oceanTrace.samples, 0)
+  assert.equal(page.oceanLibrary.contacts.length, 0)
 })
 
 test('mutations during a poll share a fresh full snapshot after it completes', async () => {

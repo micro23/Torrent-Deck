@@ -2,8 +2,17 @@
 
 Reviewed October 24, 2026. Electorrent fork created October 4 at 02:12:11 UTC.
 Reference baseline: `619328af5f8549d6b7068fd228c61329f928b765` (1.0.73).
-Latest reference reviewed: Deluge Deck 1.0.104 at `669c60654ddbd15f17b3a1502f5292ad57dcf7cb`.
-The theme importer uses the 1.0.104 material and artwork baseline. The desktop Darkhand and Terminal adapters still provide their native layouts.
+Latest reference reviewed: Deluge Deck 1.0.105 at `985ee12`.
+Torrent-Deck 2.19.26 incorporates those dashboard changes and the compact Add Torrent layout.
+
+| Theme | Desktop integration |
+| --- | --- |
+| Midnight | Observatory dial, right navigation on wider windows, telemetry below the library, plus refreshed colors and artwork. |
+| Paper | Notebook cover and spine, signature, ivory ledger, and ruling aligned with the active column widths. |
+| Ocean | Live bandwidth and connection instruments, sonar contacts aggregated by state and progress, and state filters. The instruments move into a compact panel on narrower windows. |
+| Sunset | Railway artwork, a ticket-style telemetry strip, the transfer manifest, and horizontal navigation on wider windows. |
+
+The sync uses source theme styles, preview images, and local artwork. Layout controls and server statistics use the desktop components.
 
 ## Deluge Deck 1.0.97–1.0.104
 

@@ -7,6 +7,7 @@ import { matchesLabelFilter } from "@renderer/app/directives/torrent-sidebar/tor
 import { DEFAULT_TABLE_RESIZE_OPTIONS } from "@renderer/app/lib/table-resize-options";
 import type { ElectorrentRootScope } from "@renderer/app/types/root-scope";
 import type { TorrentActionItem } from "@shared/torrent-actions";
+import { getOceanTrace, summarizeOceanLibrary } from "./ocean-telemetry";
 
 interface TorrentControllerScope extends angular.IScope {
     pendingTorrentFiles: PendingTorrentUploadList;
@@ -68,6 +69,7 @@ export class TorrentsPageController {
         $scope.arrayTorrents = [];
         $scope.statusCounts = {};
         $scope.totalDownloadSpeed = 0;
+        $scope.librarySize = 0;
         $scope.totalUploadSpeed = 0;
         $scope.totalDownloaded = 0;
         $scope.totalUploaded = 0;
@@ -149,10 +151,23 @@ export class TorrentsPageController {
             }
             renderDeckHistory();
         }
-        $scope.downloadChart = "0,22 12,16 24,19 36,10 48,14 60,5 72,12 84,8 96,14 108,5 120,9";
-        $scope.uploadChart = "0,17 12,20 24,14 36,18 48,9 60,13 72,6 84,15 96,8 108,12 120,4";
+        $scope.downloadChart = "";
+        $scope.uploadChart = "";
         const downloadHistory: number[] = [];
         const uploadHistory: number[] = [];
+        $scope.oceanLibrary = summarizeOceanLibrary([]);
+        $scope.oceanTrace = getOceanTrace([], []);
+        $scope.oceanInstrumentsExpanded = false;
+        $scope.toggleOceanInstruments = () => {
+            $scope.oceanInstrumentsExpanded = !$scope.oceanInstrumentsExpanded;
+        };
+        $scope.$watch(() => $rootScope.deckTheme, theme => {
+            if (theme === "ocean") $scope.oceanLibrary = summarizeOceanLibrary(fetchTorrents());
+        });
+        $scope.libraryHeading = () => ({
+            active: "Active now", downloading: "Downloading", seeding: "Seeding", paused: "Paused",
+            finished: "Finished", stopped: "Stopped", error: "Failed",
+        }[$scope.filters.status as string] || ($rootScope.deckTheme === "sunset" ? "Transfer manifest" : "Torrents"));
         const chartPoints = (samples: number[]) => {
             const values = samples.length ? samples : [0];
             const max = Math.max(1, ...values);
@@ -318,6 +333,12 @@ export class TorrentsPageController {
             historyKey = "";
             speedHistory = [];
             renderDeckHistory();
+            downloadHistory.length = 0;
+            uploadHistory.length = 0;
+            $scope.downloadChart = "";
+            $scope.uploadChart = "";
+            $scope.oceanLibrary = summarizeOceanLibrary([]);
+            $scope.oceanTrace = getOceanTrace([], []);
             initialSnapshotRendered = false;
             $scope.sessionStats = {};
             $scope.freeDiskSpace = null;
@@ -660,6 +681,7 @@ export class TorrentsPageController {
         function clearAll() {
             $scope.torrents = {};
             $scope.arrayTorrents = [];
+            $scope.librarySize = 0;
             $scope.statusCounts = {};
             setLabels([]);
             if ($rootScope.$server?.id) {
@@ -1109,6 +1131,7 @@ export class TorrentsPageController {
 
         function refreshTorrents() {
             const allTorrents = fetchTorrents();
+            $scope.librarySize = allTorrents.length;
             $scope.statusCounts = countTorrentsByStatus(allTorrents);
             let torrents = allTorrents;
             torrents = torrents.filter(torrentFilter());
@@ -1132,13 +1155,25 @@ export class TorrentsPageController {
             $scope.downloadingTorrentCount = allTorrents.filter((torrent: any) => torrent.isStatusDownloading()).length;
             $scope.seedingTorrentCount = allTorrents.filter((torrent: any) => torrent.isStatusSeeding()).length;
             $scope.activeTorrentCount = allTorrents.filter((torrent: any) => (torrent.isStatusDownloading() || torrent.isStatusSeeding())).length;
-            recordDeckHistory();
-            downloadHistory.push($scope.totalDownloadSpeed);
-            uploadHistory.push($scope.totalUploadSpeed);
-            if (downloadHistory.length > 12) downloadHistory.shift();
-            if (uploadHistory.length > 12) uploadHistory.shift();
+            if ($rootScope.deckTheme === "ocean") $scope.oceanLibrary = summarizeOceanLibrary(allTorrents);
+        }
+
+        function sampleTelemetry() {
+            const stats = $scope.sessionStats;
+            const append = (history: number[], rate: unknown) => {
+                if (typeof rate !== "number" || !Number.isFinite(rate) || rate < 0) return;
+                history.push(rate);
+                if (history.length > 14) history.shift();
+            };
+            append(downloadHistory, stats.download_rate ?? $scope.totalDownloadSpeed);
+            append(uploadHistory, stats.upload_rate ?? $scope.totalUploadSpeed);
             $scope.downloadChart = chartPoints(downloadHistory);
             $scope.uploadChart = chartPoints(uploadHistory);
+            $scope.oceanTrace = getOceanTrace(downloadHistory, uploadHistory);
+            const connections = stats.num_connections ?? $scope.connectedPeers;
+            const maximum = stats.max_num_connections;
+            $scope.oceanConnectionFill = Number.isFinite(maximum) && maximum > 0
+                ? Math.max(0, Math.min(100, connections / maximum * 100)) : null;
         }
 
         function reassignSelected() {
@@ -1227,6 +1262,8 @@ export class TorrentsPageController {
                     changeTorrents(torrents);
                     refreshTorrents();
                 }
+                recordDeckHistory();
+                sampleTelemetry();
                 updateLabels(torrents);
                 updateTrackers(torrents);
                 if ($rootScope.$btclient?.features?.freeDiskSpace && Object.prototype.hasOwnProperty.call(torrents, "freeDiskSpace")) {

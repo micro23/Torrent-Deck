@@ -148,6 +148,16 @@ export class TableAutoFitDirective implements IDirective {
             const floors = hints.map(([_width, floor], index) => fixed[index] ? fixedWidth : floor * floorScale)
             layout = { columns, widths, floors, fixed }
             table.classList.toggle('fit-columns-tight', floorScale < .8)
+            if (isLibrary && widths.length > 1) {
+                let left = 0
+                const lines = widths.slice(0, -1).map((width, index) => {
+                    left += width
+                    const edge = (left / available * 100).toFixed(4) + '%'
+                    const ink = index === 0 ? 'var(--book-margin)' : 'var(--book-rule)'
+                    return `transparent calc(${edge} - 1px), ${ink} calc(${edge} - 1px) ${edge}, transparent ${edge}`
+                })
+                table.closest<HTMLElement>('.main-content')?.style.setProperty('--paper-column-lines', `linear-gradient(90deg, ${lines.join(', ')})`)
+            }
             columns.forEach((column, index) => {
                 column.style.setProperty('width', `${widths[index] / available * 100}%`, 'important')
                 const handle = column.querySelector<HTMLElement>('.rz-handle')

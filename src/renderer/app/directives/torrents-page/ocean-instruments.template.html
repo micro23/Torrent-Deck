@@ -1,0 +1,82 @@
+<aside class="ocean-instruments" ng-class="{expanded: oceanInstrumentsExpanded}" aria-label="Transfer instruments">
+    <button class="ocean-instrument-toggle" type="button" ng-click="toggleOceanInstruments()"
+        ng-attr-aria-expanded="{{oceanInstrumentsExpanded}}" aria-controls="ocean-sonar-module ocean-systems-module">
+        <i class="crosshairs icon" aria-hidden="true"></i><span>Instruments</span><span>{{oceanLibrary.total}} in library</span>
+        <i class="angle double down icon" aria-hidden="true"></i>
+    </button>
+    <div class="ocean-instrument-body">
+        <section id="ocean-sonar-module" class="ocean-sonar-module" aria-labelledby="ocean-sonar-title">
+            <div class="ocean-module-label"><h2 id="ocean-sonar-title">Library sonar</h2><span>{{oceanLibrary.total}}</span></div>
+            <div class="ocean-porthole">
+                <svg class="ocean-sonar" viewBox="0 0 200 200" role="img"
+                    ng-attr-aria-label="Library sonar, {{oceanLibrary.total}} torrents. Angle groups state, distance shows completion, and contact size shows the number of torrents.">
+                    <circle cx="100" cy="100" r="95" class="ocean-sonar-face" />
+                    <g ng-if="oceanLibrary.peak" ng-attr-transform="rotate({{oceanLibrary.bearing}} 100 100)">
+                        <defs><linearGradient id="ocean-sonar-beam"><stop stop-color="#70ebd9" stop-opacity="0"/><stop offset="1" stop-color="#70ebd9" stop-opacity=".4"/></linearGradient></defs>
+                        <path d="M100 100 62.4 19.3A89 89 0 0 1 100 11Z" fill="url(#ocean-sonar-beam)"/>
+                        <path d="M100 100V11" stroke="#9af1df" stroke-width="1.25" opacity=".85"/>
+                    </g>
+                    <g fill="none" class="ocean-graticule">
+                        <circle cx="100" cy="100" r="22"/><circle cx="100" cy="100" r="42"/><circle cx="100" cy="100" r="62"/><circle cx="100" cy="100" r="81"/>
+                        <path d="M100 12v176M12 100h176M38 38l124 124M38 162 162 38" stroke-dasharray="2 4"/>
+                    </g>
+                    <g class="ocean-sector-labels" text-anchor="middle">
+                        <text x="162" y="41">DL</text><text x="162" y="165">SEED</text><text x="38" y="165">PAUSE</text><text x="38" y="41">OTHER</text>
+                    </g>
+                    <path d="M95 100h10m-5-5v10" stroke="#c3f7de" stroke-width="1"/>
+                    <g ng-repeat="contact in oceanLibrary.contacts track by contact.key" ng-attr-fill="{{contact.color}}">
+                        <title>{{contact.count}} {{contact.label}} · {{contact.progress}}% complete</title>
+                        <circle ng-attr-cx="{{contact.x}}" ng-attr-cy="{{contact.y}}" ng-attr-r="{{contact.radius + 3.2}}" opacity=".22"/>
+                        <circle ng-attr-cx="{{contact.x}}" ng-attr-cy="{{contact.y}}" ng-attr-r="{{contact.radius}}"/>
+                    </g>
+                </svg>
+            </div>
+            <div class="ocean-legend">
+                <div ng-repeat="sector in oceanLibrary.sectors track by $index" class="ocean-legend-item">
+                    <button ng-if="sector.key" type="button" ng-attr-aria-pressed="{{filters.status === sector.key}}"
+                        ng-click="filterByStatus(filters.status === sector.key ? 'all' : sector.key)">
+                        <i ng-style="{background: sector.color}"></i><span>{{sector.label}}</span><b>{{sector.count}}</b>
+                    </button>
+                    <span ng-if="!sector.key" class="ocean-legend-count"><i ng-style="{background: sector.color}"></i><span>{{sector.label}}</span><b>{{sector.count}}</b></span>
+                </div>
+            </div>
+            <p class="ocean-sonar-key">Radius · <span>0–100% complete</span><span ng-if="oceanLibrary.peak"><br>Peak traffic beam · {{oceanLibrary.peak | speed}}</span></p>
+        </section>
+        <section class="ocean-bandwidth-module" aria-labelledby="ocean-bandwidth-title">
+            <div class="ocean-module-label"><h2 id="ocean-bandwidth-title">Bandwidth</h2></div>
+            <div class="ocean-trace-case">
+                <div class="ocean-rates">
+                    <div><span><i class="arrow down icon" aria-hidden="true"></i>Download</span><strong>{{(sessionStats.download_rate == null ? totalDownloadSpeed : sessionStats.download_rate) | speed}}</strong></div>
+                    <div><span><i class="arrow up icon" aria-hidden="true"></i>Upload</span><strong>{{(sessionStats.upload_rate == null ? totalUploadSpeed : sessionStats.upload_rate) | speed}}</strong></div>
+                </div>
+                <div class="ocean-trace">
+                    <svg viewBox="0 0 100 50" preserveAspectRatio="none" role="img" aria-label="Download and upload history">
+                        <polyline class="ocean-down" ng-if="oceanTrace.down" ng-attr-points="{{oceanTrace.down}}" fill="none" vector-effect="non-scaling-stroke"/>
+                        <polyline class="ocean-up" ng-if="oceanTrace.up" ng-attr-points="{{oceanTrace.up}}" fill="none" vector-effect="non-scaling-stroke"/>
+                    </svg>
+                    <span ng-if="oceanTrace.samples">Peak {{oceanTrace.peak | speed}} · {{oceanTrace.samples}} {{oceanTrace.samples === 1 ? 'sample' : 'samples'}}</span>
+                    <span ng-if="!oceanTrace.samples">Awaiting transfer samples</span>
+                </div>
+            </div>
+        </section>
+        <section id="ocean-systems-module" class="ocean-systems-module" aria-labelledby="ocean-systems-title">
+            <div class="ocean-module-label"><h2 id="ocean-systems-title">Connections</h2></div>
+            <div class="ocean-gauge-row">
+                <svg viewBox="0 0 112 61" class="ocean-gauge" aria-hidden="true">
+                    <path d="M10 54a46 46 0 0 1 92 0" fill="none" stroke="currentColor" stroke-width="5" opacity=".25"/>
+                    <path ng-if="oceanConnectionFill != null" d="M10 54a46 46 0 0 1 92 0" pathLength="100" fill="none" stroke="currentColor" stroke-width="5"
+                        ng-attr-stroke-dasharray="{{oceanConnectionFill}} 100"/>
+                    <g ng-if="oceanConnectionFill != null" ng-attr-transform="rotate({{oceanConnectionFill * 1.8}} 56 54)">
+                        <path d="m56 51-39 3 39 2Z" fill="#ffcc8d"/><circle cx="56" cy="54" r="4" fill="#c8d7cb"/>
+                    </g>
+                </svg>
+                <div><strong>{{sessionStats.num_connections == null ? connectedPeers : sessionStats.num_connections}}</strong>
+                    <small>{{sessionStats.max_num_connections > 0 ? 'of ' + sessionStats.max_num_connections + ' max' : (sessionStats.max_num_connections == null ? 'Limit unavailable' : 'Unlimited')}}</small></div>
+            </div>
+            <dl class="ocean-readouts">
+                <div><dt>DHT nodes</dt><dd>{{sessionStats.dht_nodes == null ? '—' : sessionStats.dht_nodes}}</dd></div>
+                <div><dt>Free space</dt><dd>{{freeDiskSpace == null ? '—' : (freeDiskSpace | bytes)}}</dd></div>
+            </dl>
+        </section>
+    </div>
+</aside>
