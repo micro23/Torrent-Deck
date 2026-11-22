@@ -6,6 +6,7 @@
 - Restore the app to a visible display after disconnecting a monitor. Native Wayland sessions let the compositor place the window.
 - Read stable torrent files before upload. Automatic cleanup rechecks the original file after the server accepts the upload.
 - Coordinate background and manual refreshes so an older snapshot cannot undo an upload on screen. Compute sidebar counts when the list or filters change.
+- Repeated notices share one timer and one message. Success banners leave the Settings controls under them clickable.
 - Incorporate Electorrent 2.17.3, including its Transmission performance improvements, qBittorrent priority and ratio fixes, and Electron 45.4.1 update.
 
 ## 2.19.24 — responsive columns and steadier refreshes

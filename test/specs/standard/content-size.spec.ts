@@ -112,19 +112,9 @@ describe("main content size", function () {
 
   for (const theme of DECK_THEME_ORDER) {
     it(`keeps content sizing and detail columns readable in ${DECK_THEME_TITLES[theme]}`, async function () {
-      // The sidebar stays unscaled, so WebDriver can click it reliably even
-      // where its reported coordinates for zoomed toolbar buttons differ.
-      const settings = $("#page-settings")
-      if (!await settings.isDisplayed()) {
-        const preferences = $(".terminal-preferences")
-        await preferences.waitForClickable({ timeout: 20_000 })
-        await preferences.click()
-        await settings.waitForDisplayed({ timeout: 20_000 })
-      }
+      await this.app.openSettings()
       await this.app.settingsGotoTab("general")
-      const choice = $(`button[aria-label='Choose ${DECK_THEME_TITLES[theme]} theme']`)
-      await choice.scrollIntoView({ block: "center", inline: "nearest" })
-      await choice.click()
+      await this.app.settingsChooseTheme(DECK_THEME_TITLES[theme])
       await this.app.settingsSave()
       await this.app.torrentsPageIsVisible()
       assert.equal(await $("html").getAttribute("data-theme"), theme)

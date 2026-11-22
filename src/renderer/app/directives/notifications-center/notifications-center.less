@@ -5,6 +5,14 @@ notifications-center {
     z-index: 100000;
     display: block;
     width: 375px;
+    max-width: calc(100% - 30px);
+    pointer-events: none;
+
+    > :not(.notifications),
+    .message:not(.positive),
+    .message > .close.icon {
+        pointer-events: auto;
+    }
 
     .notification {
         margin: 5px;

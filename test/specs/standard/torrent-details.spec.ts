@@ -231,8 +231,12 @@ describe("torrent details", function () {
     await torrent.openDetailsPanel()
     try {
       const originalHeight = await panelHeight()
-      await dragVisibleElement(grip, 0, -140)
-      await eventually(panelHeight).satisfies("grow the bottom details panel", height => height > originalHeight + 90)
+      // An interrupted prior attempt can leave a larger preferred size in this
+      // profile. Establish room to grow by using the real divider first.
+      await dragVisibleElement(grip, 0, 200)
+      const startingHeight = await panelHeight()
+      await dragVisibleElement(grip, 0, -260)
+      await eventually(panelHeight).satisfies("grow the bottom details panel", height => height > startingHeight + 90)
       const expandedHeight = await panelHeight()
       await page.setViewport({ width: 1600, height: 640 })
       await eventually(panelHeight).satisfies("leave room for the library in a short window", height => height <= 640 * .48 + 2)
@@ -243,8 +247,10 @@ describe("torrent details", function () {
       await right.click()
       await eventually(async () => (await $(grip).getCSSProperty("cursor")).value).equals("ew-resize")
       const originalWidth = await panelWidth()
+      await dragVisibleElement(grip, 240)
+      const startingWidth = await panelWidth()
       await dragVisibleElement(grip, -360)
-      await eventually(panelWidth).satisfies("grow the right details panel", width => width > originalWidth + 100)
+      await eventually(panelWidth).satisfies("grow the right details panel", width => width > startingWidth + 100)
       const expandedWidth = await panelWidth()
       await page.setViewport({ width: 1180, height: 900 })
       await torrent.closeDetailsPanel()
@@ -260,7 +266,7 @@ describe("torrent details", function () {
     } finally {
       await page.setViewport({ width: 1600, height: 1000 })
       await bottom.click()
-      await torrent.closeDetailsPanel()
+      if (await $(panelSelector).isDisplayed()) await torrent.closeDetailsPanel()
     }
   })
 
@@ -370,17 +376,20 @@ describe("torrent details", function () {
     await torrent.openDetailsTab("trackers")
 
     const trackersTable = panel.$("[data-role='torrent-details-trackers-table']")
-    const actionsHeader = trackersTable.$("thead th.torrent-details-tracker-actions")
+    const headerSelector = "[data-role='torrent-details-trackers-table'] thead th.torrent-details-tracker-actions"
+    const actionsHeader = $(headerSelector)
+    await trackersTable.waitForDisplayed({ timeout: 30_000 })
     await actionsHeader.scrollIntoView({ block: "center", inline: "center" })
     const handle = actionsHeader.$(".rz-handle")
     await handle.waitForDisplayed({ timeout: 10_000 })
+    await eventually(() => handle.getAttribute("role")).equals("separator")
 
-    const initialWidth = (await actionsHeader.getSize()).width
-    await dragVisibleElement("[data-role='torrent-details-trackers-table'] thead th.torrent-details-tracker-actions .rz-handle", -40)
-    await eventually(async () => (await actionsHeader.getSize()).width)
-      .satisfies(`change by at least 10 from ${initialWidth}`, (nextWidth) => Math.abs(nextWidth - initialWidth) >= 10)
+    const getActionWidth = async () => (await visibleBounds(headerSelector)).width
+    const initialWidth = await getActionWidth()
+    await dragVisibleElement(`${headerSelector} .rz-handle`, -40)
+    await eventually(getActionWidth).satisfies(`shrink by at least 10 from ${initialWidth}`, width => width <= initialWidth - 10)
 
-    const resizedWidth = (await actionsHeader.getSize()).width
+    const resizedWidth = await getActionWidth()
     await torrent.closeDetailsPanel()
 
     const reopenedPanel = await torrent.openDetailsPanel()
@@ -388,7 +397,7 @@ describe("torrent details", function () {
 
     const reopenedActionsHeader = reopenedPanel.$("[data-role='torrent-details-trackers-table'] thead th.torrent-details-tracker-actions")
     await reopenedActionsHeader.waitForDisplayed({ timeout: 30_000 })
-    await eventually(async () => (await reopenedActionsHeader.getSize()).width)
+    await eventually(getActionWidth)
       .satisfies("restore fitted actions width after layout", width => Math.abs(width - resizedWidth) <= 1)
 
     await torrent.closeDetailsPanel()

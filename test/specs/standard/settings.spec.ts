@@ -200,16 +200,15 @@ describe("settings", function () {
     await this.app.torrentsPageIsVisible()
   })
 
-  it("save button returns to the torrents page", async function () {
+  it("save returns to the torrents page and preferences reopen", async function () {
     await this.app.settingsSave()
     await this.app.torrentsPageIsVisible()
+    await this.app.openSettings()
+    await this.app.settingsPageIsVisible()
   })
 
-  it("persists system startup preference", async function () {
-    if (process.platform === "linux") {
-      this.skip()
-    }
-
+  const startupTest = process.platform === "linux" ? it.skip : it
+  startupTest("persists system startup preference", async function () {
     await this.app.settingsGotoTab("general")
     const initialSystemStartup = await this.app.getGeneralDropdownValue("System Startup")
     const nextSystemStartup = initialSystemStartup === "Start" ? "Disabled" : "Start"
