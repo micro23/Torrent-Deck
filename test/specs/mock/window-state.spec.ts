@@ -30,8 +30,6 @@ function persistWindowState(bounds: Rectangle, flags: WindowFlags): StoredWindow
     put: (key: string, value: unknown) => {
       storedKey = key
       storedValue = value
-    },
-    write: () => {
       writes += 1
     },
   }
@@ -44,7 +42,8 @@ function persistWindowState(bounds: Rectangle, flags: WindowFlags): StoredWindow
 }
 
 function assertRestoredBounds(state: StoredWindowState, bounds: Rectangle) {
-  assert.deepEqual(getWindowBoundsOptions(state), bounds)
+  const workArea = { x: 0, y: 24, width: 1440, height: 900 }
+  assert.deepEqual(getWindowBoundsOptions(state, workArea, [workArea], true), bounds)
 }
 
 describe("window state", function () {

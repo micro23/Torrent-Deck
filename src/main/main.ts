@@ -3,6 +3,7 @@ import {
     BrowserWindow,
     Menu,
     nativeImage,
+    screen,
     session,
     shell,
     Tray,
@@ -252,11 +253,19 @@ async function bootstrap() {
         const themePreference = settings.get('ui')?.theme
         const initialTheme = themes.resolveTheme(themePreference)
         const titleBarOptions = titleBar.getTitleBarWindowOptions(themePreference)
+        const storedWindowState = windowState.getStoredWindowState(settings)
+        const restorePosition = windowState.supportsWindowPosition(
+            process.platform, app.commandLine.getSwitchValue('ozone-platform'), process.env,
+        )
         const windowSettings: BrowserWindowConstructorOptions = {
             ...titleBarOptions,
+            ...windowState.getWindowBoundsOptions(
+                storedWindowState,
+                screen.getPrimaryDisplay().workArea,
+                screen.getAllDisplays().map(display => display.workArea),
+                restorePosition,
+            ),
             show: false,
-            width: 1200,
-            height: 800,
             icon: nativeImage.createFromPath(getApplicationIcon()),
             webPreferences: {
                 nodeIntegration: false,
@@ -266,9 +275,6 @@ async function bootstrap() {
                 additionalArguments: [`--theme=${initialTheme}`],
             },
         }
-
-        const storedWindowState = windowState.getStoredWindowState(settings)
-        Object.assign(windowSettings, windowState.getWindowBoundsOptions(storedWindowState))
 
         torrentWindow = new BrowserWindow(windowSettings)
         if (windowState.shouldRestoreFullscreen(storedWindowState)) {

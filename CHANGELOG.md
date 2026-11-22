@@ -1,5 +1,13 @@
 # Changes since the Electorrent fork
 
+## 2.19.25 — desktop layout, file handling and upstream updates
+
+- A resized details pane leaves room for the torrent list when the window shrinks and returns to its preferred size when space permits.
+- Restore the app to a visible display after disconnecting a monitor. Native Wayland sessions let the compositor place the window.
+- Read stable torrent files before upload. Automatic cleanup rechecks the original file after the server accepts the upload.
+- Coordinate background and manual refreshes so an older snapshot cannot undo an upload on screen. Compute sidebar counts when the list or filters change.
+- Incorporate Electorrent 2.17.3, including its Transmission performance improvements, qBittorrent priority and ratio fixes, and Electron 45.4.1 update.
+
 ## 2.19.24 — responsive columns and steadier refreshes
 
 - Keep enabled columns within the pane. Drag a divider or use the arrow keys to resize, including with the details pane open. Wrapped filenames stay left aligned.

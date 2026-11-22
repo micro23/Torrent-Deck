@@ -111,7 +111,7 @@ describe("torrent details", function () {
 
     const hashValue = infoTab.$("[data-field-id='hash'] .torrent-details-field-copy")
     await hashValue.click()
-    const clipboardText = await browser.electron.execute((electron) => electron.clipboard.readText())
+    const clipboardText = await browser.electron.execute(async (electron) => await electron.clipboard.readText())
     clipboardText.should.equal(torrentMetadata.infoHash)
 
     await torrent.closeDetailsPanel()
@@ -209,6 +209,57 @@ describe("torrent details", function () {
         const library = await visibleBounds("#page-torrents .main-content")
         return details.x - library.x
       }).satisfies("finish returning details to the bottom", gap => Math.abs(gap) < 2)
+      await torrent.closeDetailsPanel()
+    }
+  })
+
+  it("keeps a resized details panel usable when the window shrinks and restores its preferred size", async function () {
+    this.timeout(60_000)
+    if (await $("html").getAttribute("data-theme") !== "darkhand") return this.skip()
+    const puppeteer = await browser.getPuppeteer()
+    const page = (await puppeteer.pages()).find(page => page.url().startsWith("file:") && page.url().endsWith("/index.html"))
+    if (!page) throw new Error("Electron renderer page not found")
+    const panelSelector = ".torrent-details-panel"
+    const grip = `${panelSelector} .torrent-details-panel-resizer`
+    const panelWidth = async () => (await visibleBounds(panelSelector)).width
+    const panelHeight = async () => (await visibleBounds(panelSelector)).height
+    const right = $(".dh-switches [aria-label='Details placement'] button:first-child")
+    const bottom = $(".dh-switches [aria-label='Details placement'] button:last-child")
+
+    await page.setViewport({ width: 1600, height: 1000 })
+    await bottom.click()
+    await torrent.openDetailsPanel()
+    try {
+      const originalHeight = await panelHeight()
+      await dragVisibleElement(grip, 0, -140)
+      await eventually(panelHeight).satisfies("grow the bottom details panel", height => height > originalHeight + 90)
+      const expandedHeight = await panelHeight()
+      await page.setViewport({ width: 1600, height: 640 })
+      await eventually(panelHeight).satisfies("leave room for the library in a short window", height => height <= 640 * .48 + 2)
+      await page.setViewport({ width: 1600, height: 1000 })
+      await eventually(panelHeight).satisfies("restore the preferred height", height => Math.abs(height - expandedHeight) <= 2)
+      await dragVisibleElement(grip, 0, expandedHeight - originalHeight)
+
+      await right.click()
+      await eventually(async () => (await $(grip).getCSSProperty("cursor")).value).equals("ew-resize")
+      const originalWidth = await panelWidth()
+      await dragVisibleElement(grip, -360)
+      await eventually(panelWidth).satisfies("grow the right details panel", width => width > originalWidth + 100)
+      const expandedWidth = await panelWidth()
+      await page.setViewport({ width: 1180, height: 900 })
+      await torrent.closeDetailsPanel()
+      await torrent.openDetailsPanel()
+      await eventually(async () => {
+        const side = await visibleBounds(panelSelector)
+        const library = await visibleBounds("#page-torrents .main-content")
+        return side.width < expandedWidth - 30 && library.width >= side.width && library.x + library.width <= side.x + 1
+      }).equals(true)
+      await page.setViewport({ width: 1600, height: 1000 })
+      await eventually(panelWidth).satisfies("restore the preferred width", width => Math.abs(width - expandedWidth) <= 2)
+      await dragVisibleElement(grip, expandedWidth - originalWidth)
+    } finally {
+      await page.setViewport({ width: 1600, height: 1000 })
+      await bottom.click()
       await torrent.closeDetailsPanel()
     }
   })

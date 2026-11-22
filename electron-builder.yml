@@ -75,4 +75,4 @@ fileAssociations:
     description: Torrent Files
 afterPack: ./util/after-pack.js
 afterAllArtifactBuild: ./util/after-sign.js
-electronVersion: 42.11.10
+electronVersion: 45.4.1

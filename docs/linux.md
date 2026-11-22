@@ -1,17 +1,17 @@
 # Linux and Omarchy
 
 The Linux release is built for **x86-64** (`uname -m` prints `x86_64`). Download
-`Torrent-Deck-2.19.24-Linux-x86_64.AppImage` and `SHA256SUMS-linux.txt` from
-[release 2.19.24](https://github.com/micro23/Torrent-Deck/releases/tag/v2.19.24).
+`Torrent-Deck-2.19.25-Linux-x86_64.AppImage` and `SHA256SUMS-linux.txt` from
+[release 2.19.25](https://github.com/micro23/Torrent-Deck/releases/tag/v2.19.25).
 
 In the download directory:
 
 ```sh
 grep 'AppImage$' SHA256SUMS-linux.txt | sha256sum -c -
 mkdir -p "$HOME/Applications"
-mv Torrent-Deck-2.19.24-Linux-x86_64.AppImage "$HOME/Applications/"
-chmod +x "$HOME/Applications/Torrent-Deck-2.19.24-Linux-x86_64.AppImage"
-"$HOME/Applications/Torrent-Deck-2.19.24-Linux-x86_64.AppImage"
+mv Torrent-Deck-2.19.25-Linux-x86_64.AppImage "$HOME/Applications/"
+chmod +x "$HOME/Applications/Torrent-Deck-2.19.25-Linux-x86_64.AppImage"
+"$HOME/Applications/Torrent-Deck-2.19.25-Linux-x86_64.AppImage"
 ```
 
 Keep the AppImage in a permanent, writable location so the launcher and in-app
@@ -32,14 +32,14 @@ it does not mount an AppImage or require FUSE.
 
 ## Portable archive
 
-Download `Torrent-Deck-2.19.24-Linux-x64.tar.gz` and the checksum file. In the
+Download `Torrent-Deck-2.19.25-Linux-x64.tar.gz` and the checksum file. In the
 download directory:
 
 ```sh
 grep 'tar.gz$' SHA256SUMS-linux.txt | sha256sum -c -
-mkdir -p "$HOME/Applications/Torrent-Deck-2.19.24"
-tar -xzf Torrent-Deck-2.19.24-Linux-x64.tar.gz --strip-components=1 -C "$HOME/Applications/Torrent-Deck-2.19.24"
-"$HOME/Applications/Torrent-Deck-2.19.24/torrent-deck"
+mkdir -p "$HOME/Applications/Torrent-Deck-2.19.25"
+tar -xzf Torrent-Deck-2.19.25-Linux-x64.tar.gz --strip-components=1 -C "$HOME/Applications/Torrent-Deck-2.19.25"
+"$HOME/Applications/Torrent-Deck-2.19.25/torrent-deck"
 ```
 
 Keep all extracted files together. Replace the archive installation manually for

@@ -3,6 +3,14 @@ import type { ElectorrentRootScope } from "@renderer/app/types/root-scope";
 
 type TorrentDetailsTab = "info" | "files" | "peers" | "trackers";
 
+const panelSizeKey = "electorrent-deck-details-size";
+const defaultPanelHeight = 320;
+const defaultPanelWidth = 400;
+const minPanelHeight = 220;
+const minPanelWidth = 320;
+const maxPanelHeight = 600;
+const maxPanelWidth = 720;
+
 export interface TorrentDetailsPanelScope extends IScope {
   isOpen: boolean;
   torrent: any;
@@ -13,10 +21,8 @@ export interface TorrentDetailsPanelScope extends IScope {
 export class TorrentDetailsPanelController {
   static $inject = ["$scope", "$rootScope", "$window", "$document"];
 
-  private readonly defaultPanelHeight = 320;
-  private readonly minPanelHeight = 220;
-  private panelHeight = this.defaultPanelHeight;
-  private panelWidth = 400;
+  private panelHeight = defaultPanelHeight;
+  private panelWidth = defaultPanelWidth;
   private isSidePanel() {
     return this.rootScope.deckTheme === "darkhand" && this.rootScope.deckLayout?.details === "right" && this.$window.innerWidth > 1100;
   }
@@ -29,9 +35,9 @@ export class TorrentDetailsPanelController {
     private $document: IDocumentService,
   ) {
     try {
-      const saved = JSON.parse(this.$window.localStorage.getItem("electorrent-deck-details-size") || "{}");
-      this.panelHeight = Math.max(this.minPanelHeight, Math.min(600, Number(saved.height) || this.defaultPanelHeight));
-      this.panelWidth = Math.max(320, Math.min(720, Number(saved.width) || 400));
+      const saved = JSON.parse(this.$window.localStorage.getItem(panelSizeKey) || "{}");
+      this.panelHeight = Math.max(minPanelHeight, Math.min(maxPanelHeight, Number(saved.height) || defaultPanelHeight));
+      this.panelWidth = Math.max(minPanelWidth, Math.min(maxPanelWidth, Number(saved.width) || defaultPanelWidth));
     } catch { /* Use the default panel size. */ }
     this.scope.isOpen = false;
     this.scope.torrent = null;
@@ -79,7 +85,7 @@ export class TorrentDetailsPanelController {
     this.scope.isOpen = true;
     this.scope.activeTab = this.defaultTab();
     this.scope.torrent = torrent;
-    document.querySelector<HTMLElement>("#page-torrents")?.style.setProperty("--deck-details-width", `${this.panelWidth}px`);
+    this.applyPreferredSize();
     this.scope.refresh += 1;
   }
 
@@ -96,10 +102,6 @@ export class TorrentDetailsPanelController {
 
   isActiveTab(tab: TorrentDetailsTab) {
     return this.scope.activeTab === tab;
-  }
-
-  panelStyle() {
-    return this.isSidePanel() ? { width: `${this.panelWidth}px`, height: "auto" } : { height: `${this.panelHeight}px`, width: "100%" };
   }
 
   canShowPeers() {
@@ -123,31 +125,45 @@ export class TorrentDetailsPanelController {
   }
 
   startResizing(event: MouseEvent) {
+    if (event.button !== 0) return;
+    const handle = event.currentTarget as HTMLElement;
+    const panel = handle.closest<HTMLElement>(".torrent-details-panel");
+    const page = panel?.closest<HTMLElement>(".main-panel");
+    if (!panel || !page) return;
+
     event.preventDefault();
     event.stopPropagation();
 
     const side = this.isSidePanel();
-    const startY = side ? event.clientX : event.clientY;
-    const startHeight = side ? this.panelWidth : this.panelHeight;
+    const start = side ? event.clientX : event.clientY;
+    const bounds = panel.getBoundingClientRect();
+    const scale = bounds.width / panel.offsetWidth || 1;
+    const startSize = (side ? bounds.width : bounds.height) / scale;
+    const originalPreference = side ? this.panelWidth : this.panelHeight;
+    const maxSize = side
+      ? Math.min(maxPanelWidth, page.getBoundingClientRect().width * .48 / scale)
+      : Math.min(maxPanelHeight, this.$window.innerHeight * .48 / scale);
+    const minSize = Math.min(side ? minPanelWidth : minPanelHeight, maxSize);
     const documentRef = this.$document[0];
+    let changed = false;
 
     this.stopResizeListeners?.();
 
     const onMouseMove = (moveEvent: MouseEvent) => {
-      const delta = startY - (side ? moveEvent.clientX : moveEvent.clientY);
-      const maxHeight = side ? Math.min(720, this.$window.innerWidth * .45) : Math.max(this.minPanelHeight, (this.$window.innerHeight || startHeight) - 140);
-      const nextHeight = Math.max(side ? 320 : this.minPanelHeight, Math.min(maxHeight, startHeight + delta));
-
-      this.scope.$evalAsync(() => {
-        if (side) {
-          this.panelWidth = nextHeight;
-          document.querySelector<HTMLElement>("#page-torrents")?.style.setProperty("--deck-details-width", `${nextHeight}px`);
-        } else this.panelHeight = nextHeight;
-      });
+      const delta = (start - (side ? moveEvent.clientX : moveEvent.clientY)) / scale;
+      const nextSize = delta === 0
+        ? originalPreference
+        : Math.round(Math.max(minSize, Math.min(maxSize, startSize + delta)));
+      if (side) this.panelWidth = nextSize;
+      else this.panelHeight = nextSize;
+      changed = nextSize !== originalPreference;
+      this.applyPreferredSize();
     };
 
     const onMouseUp = () => {
-      try { this.$window.localStorage.setItem("electorrent-deck-details-size", JSON.stringify({ height: this.panelHeight, width: this.panelWidth })); } catch { /* Resizing still works without storage. */ }
+      if (changed) {
+        try { this.$window.localStorage.setItem(panelSizeKey, JSON.stringify({ height: this.panelHeight, width: this.panelWidth })); } catch { /* Resizing still works without storage. */ }
+      }
       documentRef.removeEventListener("mousemove", onMouseMove);
       documentRef.removeEventListener("mouseup", onMouseUp);
       this.stopResizeListeners = undefined;
@@ -156,6 +172,12 @@ export class TorrentDetailsPanelController {
     documentRef.addEventListener("mousemove", onMouseMove);
     documentRef.addEventListener("mouseup", onMouseUp);
     this.stopResizeListeners = onMouseUp;
+  }
+
+  private applyPreferredSize() {
+    const page = this.$document[0].querySelector<HTMLElement>("#page-torrents");
+    page?.style.setProperty("--deck-details-width", `${this.panelWidth}px`);
+    page?.style.setProperty("--deck-details-height", `${this.panelHeight}px`);
   }
 
   private clearSelection() {

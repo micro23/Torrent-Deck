@@ -175,7 +175,7 @@ export function registerHandlers({ isDebug, forceTitleBarMenu, getWindow, consum
     })
 
     handle(IPC_CHANNELS.clipboard.writeText, async function(_event: IpcMainInvokeEvent, { text }) {
-        clipboard.writeText(text)
+        await clipboard.writeText(text)
     })
 
     handle(IPC_CHANNELS.shell.openExternal, async function(_event: IpcMainInvokeEvent, { url }) {

@@ -11,7 +11,7 @@ function createPage() {
   const stored = new Map()
   const alerts = []
   const page = { $on: (event, callback) => events.set(event, callback) }
-  const root = { $on() {}, $applyAsync() {}, $emit() {} }
+  const root = { $on: () => () => {}, $applyAsync() {}, $emit() {} }
   const timeout = callback => { timers.add(callback); return callback }
   timeout.cancel = callback => timers.delete(callback)
   const q = Object.assign(executor => new Promise(executor), {
@@ -25,7 +25,8 @@ function createPage() {
     exports,
     localStorage: { getItem: key => stored.get(key), setItem: (key, value) => stored.set(key, value) },
     window: { performance, electorrent: { app: { getMeta: async () => ({}) }, bittorrent: { setSelectedTorrents() {} } } },
-    require: name => name === 'fuse.js' ? require(name) : {},
+    require: name => name === 'fuse.js' ? require(name) : name.endsWith('torrent-label-filter')
+      ? { matchesLabelFilter: (label, filter) => !filter || label === filter } : {},
   })
   new exports.TorrentsPageController(root, page, timeout, () => {}, q, {}, {
     alert: (...args) => alerts.push(args), enableAll() {}, disableAll() {},
@@ -62,4 +63,56 @@ test('the transfer chart switches to each server’s own saved history', async (
   await page.update()
   assert.equal(page.deckChartMax, 660 * 1.2)
   assert.equal(JSON.parse(stored.get('electorrent-deck-history:first'))[0][2], 220)
+})
+
+test('mutations during a poll share a fresh full snapshot after it completes', async () => {
+  const { page, root } = createPage()
+  const requests = []
+  root.$server = { id: 'one', columns: [] }
+  root.$btclient = { torrents: full => new Promise(resolve => requests.push({ full, resolve })) }
+  const poll = page.update()
+  const afterUpload = page.update(true)
+  assert.equal(page.update(true), afterUpload)
+  assert.deepEqual(requests.map(request => request.full), [false])
+  requests[0].resolve({ all: [], dirty: true, sessionStats: { connections: 3 } })
+  await poll
+  assert.deepEqual(requests.map(request => request.full), [false, true])
+  requests[1].resolve({ all: [], dirty: true, sessionStats: { connections: 4 } })
+  await afterUpload
+  assert.equal(page.sessionStats.connections, 4)
+})
+
+test('a queued refresh from an old server never starts on the new profile', async () => {
+  const { events, page, root } = createPage()
+  let finishOld
+  let newCalls = 0
+  root.$server = { id: 'one' }
+  root.$btclient = { torrents: () => new Promise(resolve => { finishOld = resolve }) }
+  const pending = page.update()
+  const queued = page.update(true)
+  events.get('stop:torrents')()
+  root.$server = { id: 'two' }
+  root.$btclient = { torrents: async () => { newCalls++; return { sessionStats: { connections: 9 } } } }
+  await page.update(true)
+  finishOld({ sessionStats: { connections: 1 } })
+  await Promise.all([pending, queued])
+  assert.equal(newCalls, 1)
+  assert.equal(page.sessionStats.connections, 9)
+})
+
+test('cached sidebar counts include active and paused torrents when a saved sort key is unavailable', async () => {
+  const { page, root } = createPage()
+  const row = (id, paused) => ({
+    id, dateAdded: id, isStatusPaused: () => paused, isStatusStopped: () => paused,
+    isStatusDownloading: () => !paused, isStatusSeeding: () => false,
+    isStatusQueued: () => false, isStatusCompleted: () => false, isStatusError: () => false,
+  })
+  root.$server = { id: 'one', columns: [{ attribute: 'dateAdded', sort: (a, b) => a - b }] }
+  root.$btclient = { torrents: async () => ({ all: [row(1, false), row(2, true)], dirty: true }) }
+  page.changeSorting({ sortKey: 'retiredColumn', descending: true })
+  await page.update()
+  assert.deepEqual(Array.from(page.arrayTorrents, torrent => torrent.id), [1, 2])
+  assert.equal(page.statusCounts.all, 2)
+  assert.equal(page.statusCounts.active, 1)
+  assert.equal(page.statusCounts.paused, 1)
 })

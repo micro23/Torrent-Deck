@@ -7,6 +7,8 @@ torrent-details-panel {
         display: flex;
         flex-direction: column;
         min-height: 0;
+        width: 100%;
+        height: min(var(--deck-details-height, 320px), calc(48dvh / var(--deck-content-scale, .8)));
         container-type: inline-size;
         background-color: @pageForeground;
         border-top: 1px solid @borderColor;
