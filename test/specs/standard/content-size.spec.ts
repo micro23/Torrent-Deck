@@ -118,6 +118,15 @@ describe("main content size", function () {
       await this.app.settingsSave()
       await this.app.torrentsPageIsVisible()
       assert.equal(await $("html").getAttribute("data-theme"), theme)
+      if (theme === "valentine") {
+        // Rounded form controls and the Settings panel use different theme radii.
+        // Check both corners of the panel through their actual pointer targets.
+        await this.app.openSettings()
+        await this.app.settingsGotoTab("advanced")
+        await this.app.settingsGotoTab("general")
+        await this.app.settingsCancel()
+        await this.app.torrentsPageIsVisible()
+      }
       const rail = await bounds(".status-bar")
       const disk = await bounds(".status-bar .status-free-space")
       const sync = await bounds(".status-bar .status-sync")
