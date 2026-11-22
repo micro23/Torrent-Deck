@@ -95,3 +95,32 @@ html[data-theme] body .ui.table.fit-columns .rz-handle:focus-visible {
     outline: 2px solid var(--accent, @primaryColor);
     outline-offset: -2px;
 }
+
+#torrentTable .torrent-details-trigger {
+    appearance: none;
+    border: 0;
+    padding: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+#torrentTable .torrent-details-trigger:focus-visible {
+    outline: 2px solid var(--cyan);
+    outline-offset: -2px;
+}
+
+#torrentTable .torrent-select-results {
+    position: absolute;
+    inset-inline-start: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    margin: 0;
+    accent-color: var(--cyan);
+}
+
+#torrentTable:not(.is-sticky) th[data-col="decodedName"] {
+    position: relative;
+}

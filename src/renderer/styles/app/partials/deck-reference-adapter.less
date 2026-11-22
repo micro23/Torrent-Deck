@@ -766,3 +766,23 @@ html[data-theme][data-theme] body #page-torrents #torrentTable.fit-columns {
         padding-block: 2px !important;
     }
 }
+
+/* The desktop details tabs use Semantic UI items in place of the WebUI buttons. */
+html[data-theme="light"] body #page-torrents torrent-details-panel .torrent-details-tabs.ui.menu {
+    border-bottom:4px double var(--paper-cloth) !important;
+}
+html[data-theme="ocean"] body #page-torrents torrent-details-panel .torrent-details-tabs.ui.menu {
+    background:#071e2d !important;
+}
+html[data-theme="ocean"] body #page-torrents torrent-details-panel .torrent-details-tabs.ui.menu > .item.active {
+    background:#123547 !important;
+    color:var(--cyan) !important;
+}
+html[data-theme="sunset"] body #page-torrents torrent-details-panel .torrent-details-tabs.ui.menu {
+    background:#382935 !important;
+}
+html[data-theme="sunset"] body #page-torrents torrent-details-panel .torrent-details-tabs.ui.menu > .item.active {
+    background:#f5c49b !important;
+    color:#351d2c !important;
+    box-shadow:inset 0 -3px #cc7b6b !important;
+}

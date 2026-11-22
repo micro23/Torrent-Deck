@@ -36,6 +36,22 @@ test('a .torrent file still reaches the upload queue when its optional preview c
   assert.equal(torrent.metadata, undefined)
 })
 
+test('torrent metadata preserves padding slots and excludes them from the payload size', () => {
+  const parsed = {
+    length: 32,
+    info: { files: [{}, { attr: Buffer.from('p') }, {}] },
+    files: [
+      { name: 'first', path: 'first', length: 10 },
+      { name: 'pad', path: '.pad/pad', length: 16 },
+      { name: 'second', path: 'second', length: 6 },
+    ],
+  }
+  const result = loadTorrents({ 'parse-torrent': () => parsed }).parse({ data: new Uint8Array([1]) })
+  assert.equal(result.length, 16)
+  assert.equal(result.files[1].padding, true)
+  assert.equal(result.files[2].name, 'second')
+})
+
 test('file opening rejects non-files, empty files and continuously rewritten same-size files', async t => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'torrent-deck-write-'))
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }))

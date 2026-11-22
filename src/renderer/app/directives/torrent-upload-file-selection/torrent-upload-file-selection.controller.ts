@@ -46,6 +46,7 @@ export class TorrentUploadFileSelectionController {
         const folders = new Map<string, UploadFileTreeNode>()
 
         files.forEach((file, index) => {
+            if (file.padding) return
             const normalizedPath = file.path || file.name || `file-${index + 1}`
             const parts = normalizedPath.split(/[\\/]+/).filter(Boolean)
             let siblings = roots
@@ -100,7 +101,6 @@ export class TorrentUploadFileSelectionController {
         node.selected = selected
         node.partial = false
         node.children.forEach((child) => this.setNodeSelection(child, selected))
-        this.refreshFolderState(this.fileTree)
     }
 
     private refreshFolderState(nodes: UploadFileTreeNode[]) {
@@ -119,6 +119,7 @@ export class TorrentUploadFileSelectionController {
     }
 
     private emitSelection() {
+        this.refreshFolderState(this.fileTree)
         const selection = this.visibleFileTree
             .filter((node) => node.fileIndex !== undefined)
             .map((node): BittorrentFileSelection => ({
@@ -129,8 +130,13 @@ export class TorrentUploadFileSelectionController {
                 wanted: node.selected,
             }))
 
-        this.scope.onSelectionChange({
-            selection: selection.every((file) => file.wanted) ? undefined : selection,
-        })
+        if (selection.every((file) => file.wanted)) {
+            this.scope.onSelectionChange({ selection: undefined })
+            return
+        }
+        for (const [index, file] of (this.scope.files || []).entries()) {
+            if (file.padding) selection.push({ index, path: file.path, name: file.name, size: 0, wanted: false })
+        }
+        this.scope.onSelectionChange({ selection })
     }
 }

@@ -532,10 +532,12 @@ export class App {
 
   async openSettings() {
     await this.waitForSettingsTransition()
-    if (await $("#page-settings").isDisplayed()) return
-
-    await this.clickSettingsControl(".terminal-preferences", 'button[data-role="show-settings"]')
-    await this.settingsPageIsVisible()
+    const settings = $("#page-settings")
+    await browser.waitUntil(async () => {
+      if (await settings.isDisplayed()) return true
+      await this.clickSettingsControl(".terminal-preferences", 'button[data-role="show-settings"]')
+      return await settings.isDisplayed()
+    }, { timeout: 12_000, interval: 300, timeoutMsg: "Preferences did not open from either visible control" })
     await this.waitForSettingsTransition()
   }
 

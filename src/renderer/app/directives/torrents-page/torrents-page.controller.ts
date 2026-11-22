@@ -599,7 +599,7 @@ export class TorrentsPageController {
                 selected.push(torrent);
             }
             syncDetailsPanel();
-            $scope.$apply();
+            $scope.$applyAsync();
         }
 
         function startTimer(fullupdate?: boolean) {
@@ -812,11 +812,25 @@ export class TorrentsPageController {
         $scope.openTorrentDetails = (torrent: any) => {
             openTorrentDetails(torrent);
         };
+        $scope.openDetailsFromButton = (event: MouseEvent, torrent: any) => {
+            event.stopPropagation();
+            openTorrentDetails(torrent);
+        };
 
         $scope.noneSelected = () => {
             return selected.length === 0;
         };
         $scope.selectedCount = () => selected.length;
+        $scope.allResultsSelected = () => selected.length > 0 && selected.length === $scope.arrayTorrents.length;
+        $scope.toggleResultSelection = (event: MouseEvent) => {
+            event.stopPropagation();
+            if ($scope.allResultsSelected()) {
+                deselectAll();
+                syncDetailsPanel();
+            } else {
+                selectAll();
+            }
+        };
 
         function toggleSelect(target: any) {
             const torrent = $scope.torrents[target.id];
@@ -1102,6 +1116,14 @@ export class TorrentsPageController {
             torrents = torrents.sort(torrentSorter());
             $scope.isSearching = false;
             $scope.arrayTorrents = torrents;
+            if (selected.length > 0) {
+                const visibleIds = new Set(torrents.map(torrent => torrent.id));
+                selected = selected.filter(torrent => {
+                    if (visibleIds.has(torrent.id)) return true;
+                    torrent.selected = false;
+                    return false;
+                });
+            }
             $scope.totalDownloadSpeed = allTorrents.reduce((acc: number, { downloadSpeed }: { downloadSpeed: number }) => acc + downloadSpeed, 0);
             $scope.totalUploadSpeed = allTorrents.reduce((acc: number, { uploadSpeed }: { uploadSpeed: number }) => acc + uploadSpeed, 0);
             $scope.totalDownloaded = allTorrents.reduce((acc: number, { downloaded }: { downloaded: number }) => acc + downloaded, 0);

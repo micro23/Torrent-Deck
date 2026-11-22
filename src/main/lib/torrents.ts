@@ -53,17 +53,20 @@ async function readStableFile(filePath: string, attempts = 6, delay = 250): Prom
 export function parse(request: ParseTorrentRequest): TorrentMetadata {
     const source = 'uri' in request ? request.uri : Buffer.from(request.data)
     const parsed = parseTorrent(source)
+    const info = 'info' in parsed ? parsed.info as { files?: Array<{ attr?: Buffer }> } : undefined
+    const files = (parsed.files || []).map((file, index) => ({
+        name: file.name,
+        path: file.path,
+        length: file.length,
+        ...(info?.files?.[index]?.attr?.includes(0x70) ? { padding: true } : {}),
+    }))
 
     return {
         name: parsed.name,
         infoHash: parsed.infoHash,
-        length: parsed.length,
+        length: files.length ? files.reduce((total, file) => total + (file.padding ? 0 : file.length), 0) : parsed.length,
         announce: parsed.announce || [],
-        files: (parsed.files || []).map((file) => ({
-            name: file.name,
-            path: file.path,
-            length: file.length,
-        })),
+        files,
     }
 }
 

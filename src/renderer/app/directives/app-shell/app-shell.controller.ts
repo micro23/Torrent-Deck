@@ -117,6 +117,10 @@ export class AppShellController {
             if (command === "refresh") $rootScope.$broadcast("shortcut:refresh-torrents");
             if (command === "search") $timeout(() => document.querySelector<HTMLInputElement>("input[search]")?.focus());
         };
+        $scope.runFirstCommand = () => {
+            const command = document.querySelector<HTMLButtonElement>(".deck-command-list [data-command]")?.dataset.command;
+            if (command) $scope.runCommand(command);
+        };
 
         $rootScope.$on("ready", () => {
             Promise.all([settingsService.whenReady(), electorrent.app.getMeta()]).then(([_, meta]: [unknown, AppMeta]) => {

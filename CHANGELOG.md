@@ -2,6 +2,10 @@
 
 ## 2.19.25 — desktop layout, file handling and upstream updates
 
+- Sync Deluge Deck 1.0.104’s Paper, Ocean, and Sunset redesigns with refreshed artwork, sidebar and detail styling, and gallery previews.
+- Select filtered torrents from the table header, open Details from a torrent’s name with the keyboard, and reorder columns with the arrow keys in Layout. Press Enter in the command palette to run the first match.
+- Preserve the original torrent file indexes during upload review, exclude padding from the file picker and payload size, and report Deluge’s per-torrent result for magnet and URL adds.
+
 - A resized details pane leaves room for the torrent list when the window shrinks and returns to its preferred size when space permits.
 - Restore the app to a visible display after disconnecting a monitor. Native Wayland sessions let the compositor place the window.
 - Read stable torrent files before upload. Automatic cleanup rechecks the original file after the server accepts the upload.

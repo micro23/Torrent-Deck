@@ -2,8 +2,21 @@
 
 Reviewed October 24, 2026. Electorrent fork created October 4 at 02:12:11 UTC.
 Reference baseline: `619328af5f8549d6b7068fd228c61329f928b765` (1.0.73).
-Latest behavior reviewed: Deluge Deck 1.0.96 at `9c64c8cb2be837b64dcf03e4d60d250958ef0bed`.
-Theme/artwork baseline: 1.0.95 at `39b5882a7caf379166245e6dd12435d26fb59bbe`; 1.0.96 does not change those source files.
+Latest reference reviewed: Deluge Deck 1.0.104 at `669c60654ddbd15f17b3a1502f5292ad57dcf7cb`.
+The theme importer uses the 1.0.104 material and artwork baseline. The desktop Darkhand and Terminal adapters still provide their native layouts.
+
+## Deluge Deck 1.0.97–1.0.104
+
+| WebUI version | Torrent-Deck behavior |
+| --- | --- |
+| 1.0.97 | Confirm the individual result for Deluge magnet and URL adds. The native upload queue already keeps failed items for retry. |
+| 1.0.98 | Browser cookie restoration belongs to the hosted WebUI. Torrent-Deck reconnects through its existing desktop server profiles. |
+| 1.0.99–1.0.101 | Enabled columns fit the pane. The Uploaded column is configurable and filenames use the full width from the left edge. |
+| 1.0.102 | Keyboard-accessible Details and column order, a searchable command palette with Enter activation, and responsive resizing. The desktop table still progressively renders rows on scroll. |
+| 1.0.103 | Filtered bulk selection includes a mixed state and drops stale targets after a refresh. Upload review excludes padding and preserves file indexes. Team logos already load as separate local assets. |
+| 1.0.104 | Use the Paper, Ocean, and Sunset mastheads, colors, artwork, gallery previews, and matching detail tabs with the desktop layout. |
+
+Hosted login, sign-out, plugin packaging, phone navigation, and daemon-side speed history remain native WebUI features. The desktop records chart samples per profile while it is open.
 The intervening source changes through 1.0.95 were reviewed; the later cleanup
 commit removes unused source assets and recompresses the stadium photography.
 
