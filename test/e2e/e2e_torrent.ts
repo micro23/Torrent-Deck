@@ -167,12 +167,25 @@ export class Torrent {
   }
 
   async closeDetailsPanel() {
-    const panel = $("[data-role='torrent-details-panel']")
-    await panel.waitForDisplayed({ timeout: this.timeout })
-
-    const closeButton = panel.$("[data-role='torrent-details-close']")
-    await closeButton.waitForDisplayed({ timeout: this.timeout })
-    await closeButton.click()
+    const selector = "[data-role='torrent-details-panel']"
+    const panel = $(selector)
+    const puppeteer = await browser.getPuppeteer()
+    const renderer = (await puppeteer.pages()).find(page => page.url().startsWith("file:") && page.url().endsWith("/index.html"))
+    if (!renderer) throw new Error("Electron renderer page not found")
+    const closeButton = await renderer.waitForSelector(`${selector} [data-role='torrent-details-close']`, { visible: true, timeout: this.timeout })
+    if (!closeButton) throw new Error("Torrent details close button unavailable")
+    // Use the actual viewport location of the zoomed control. ChromeDriver
+    // can report an offset center and hit the menu or the detail body instead.
+    try {
+      await closeButton.scrollIntoView()
+      await renderer.waitForFunction(button => {
+        const box = button.getBoundingClientRect()
+        return button.contains(document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2))
+      }, { timeout: this.timeout }, closeButton)
+      await closeButton.click()
+    } finally {
+      await closeButton.dispose()
+    }
     await panel.waitForDisplayed({ timeout: this.timeout, reverse: true })
   }
 

@@ -83,6 +83,7 @@ export interface TorrentMetadataFile {
     name: string
     path: string
     length: number
+    padding?: boolean
 }
 
 export interface TorrentMetadata {

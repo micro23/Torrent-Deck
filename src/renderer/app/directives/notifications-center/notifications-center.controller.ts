@@ -3,13 +3,21 @@ import type { ModalController } from "@renderer/app/directives/modal/modal.contr
 import type { CertificateResponseService } from "@renderer/app/services/certificate-response";
 import type { CertificatePrompt, UpdateEvent } from "@shared/ipc-contract";
 
+interface Notice {
+    title: string;
+    message: string;
+    type: string;
+    delay?: number;
+    timer?: angular.IPromise<void>;
+}
+
 interface NotificationsCenterScope extends IScope {
     updateData: {
         releaseDate?: string;
         updateUrl?: string;
         [key: string]: any;
     };
-    notifications: any[];
+    notifications: Notice[];
     manualUpdate?: boolean;
     close: (index: number) => void;
     installUpdate: () => boolean;
@@ -37,7 +45,6 @@ export class NotificationsCenterController {
         certificateResponseService: CertificateResponseService,
     ) {
         const electorrent = window.electorrent
-        let id = 0;
         let insecureTlsFlowActive = false;
 
         $scope.updateData = {
@@ -48,23 +55,26 @@ export class NotificationsCenterController {
         $scope.notifications = [];
 
         $scope.close = (index: number) => {
-            $scope.notifications.splice(index, 1);
+            const [notice] = $scope.notifications.splice(index, 1);
+            if (notice?.timer) $timeout.cancel(notice.timer);
         };
 
-        $rootScope.$on("notification", (event: unknown, data: any) => {
-            id += 1;
-            data.notificationId = id;
-            $scope.notifications.push(data);
-            removeAlert(data, data.delay || 5000);
+        const unsubscribe = $rootScope.$on("notification", (_event: unknown, data: Notice) => {
+            let notice = $scope.notifications.find(item =>
+                item.type === data.type && item.title === data.title && item.message === data.message);
+            if (!notice) {
+                notice = { ...data };
+                $scope.notifications.push(notice);
+            }
+            if (notice.timer) $timeout.cancel(notice.timer);
+            notice.timer = $timeout(() => {
+                $scope.notifications = $scope.notifications.filter(item => item !== notice);
+            }, data.delay || 5000);
         });
-
-        const removeAlert = (data: any, delay: number) => {
-            $timeout(() => {
-                $scope.notifications = $scope.notifications.filter((value) => {
-                    return value.notificationId !== data.notificationId;
-                });
-            }, delay);
-        };
+        $scope.$on("$destroy", () => {
+            unsubscribe();
+            $scope.notifications.forEach(notice => $timeout.cancel(notice.timer));
+        });
 
         const showCertModal = () => {
             $timeout(() => {

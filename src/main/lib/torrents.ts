@@ -11,6 +11,7 @@ import type {
     TorrentMetadata,
 } from '@shared/ipc-contract'
 import * as electorrent from './electorrent'
+import { readFileVersion, sameFileVersion } from './torrent-source-file'
 
 function notify({ title = '', message = '', type = 'info' }) {
     const win = electorrent.getWindow()
@@ -31,48 +32,41 @@ function sleep(timeout: number) {
     return new Promise((resolve) => setTimeout(resolve, timeout))
 }
 
-async function waitForStableFile(filePath: string, attempts = 6, delay = 250) {
-    let previousSize = -1
+async function readStableFile(filePath: string, attempts = 6, delay = 250): Promise<Buffer> {
+    let previous: fs.Stats | undefined
 
     for (let index = 0; index < attempts; index += 1) {
-        let stats: fs.Stats
-
-        try {
-            stats = await fs.promises.stat(filePath)
-        } catch (error) {
-            if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-                return
-            }
-            throw error
-        }
-
+        if (index > 0) await sleep(delay)
+        const stats = await fs.promises.stat(filePath)
         if (!stats.isFile()) {
-            return
+            throw new Error('Choose a regular torrent file')
         }
-
-        if (stats.size === previousSize) {
-            return
+        if (stats.size && previous && sameFileVersion(previous, stats)) {
+            const data = await readFileVersion(filePath, stats)
+            if (data) return data
         }
-
-        previousSize = stats.size
-        await sleep(delay)
+        previous = stats
     }
+    throw new Error('The torrent file is empty or still changing. Try again after it finishes saving.')
 }
 
 export function parse(request: ParseTorrentRequest): TorrentMetadata {
     const source = 'uri' in request ? request.uri : Buffer.from(request.data)
     const parsed = parseTorrent(source)
+    const info = 'info' in parsed ? parsed.info as { files?: Array<{ attr?: Buffer }> } : undefined
+    const files = (parsed.files || []).map((file, index) => ({
+        name: file.name,
+        path: file.path,
+        length: file.length,
+        ...(info?.files?.[index]?.attr?.includes(0x70) ? { padding: true } : {}),
+    }))
 
     return {
         name: parsed.name,
         infoHash: parsed.infoHash,
-        length: parsed.length,
+        length: files.length ? files.reduce((total, file) => total + (file.padding ? 0 : file.length), 0) : parsed.length,
         announce: parsed.announce || [],
-        files: (parsed.files || []).map((file) => ({
-            name: file.name,
-            path: file.path,
-            length: file.length,
-        })),
+        files,
     }
 }
 
@@ -93,9 +87,7 @@ export function serializeMagnetLink(uri: string, askUploadOptions = false): Pend
 }
 
 export async function serializeTorrentFile(filePath: string, askUploadOptions: boolean): Promise<PendingTorrentUploadFile> {
-    await waitForStableFile(filePath)
-
-    const data = await fs.promises.readFile(filePath)
+    const data = await readStableFile(filePath)
     const torrentData = new Uint8Array(data)
 
     const torrent: PendingTorrentUploadFile = {
@@ -142,11 +134,16 @@ export async function readFiles(filepaths: string[], askUploadOptions: boolean) 
     return files.filter((file): file is PendingTorrentUploadFile => file !== null)
 }
 
+// Electron >= 43 defaults the dialog to the Downloads folder instead of letting
+// the OS restore the last-used directory, so remember it ourselves.
+let lastBrowseDirectory: string | undefined
+
 export async function browse(askUploadOptions: boolean) {
     const win = electorrent.getWindow()
 
     const result = await dialog.showOpenDialog(win, {
         title: 'Open Torrent File',
+        defaultPath: lastBrowseDirectory,
         buttonLabel: 'Add Torrent',
         filters: [
             { name: 'Torrent', extensions: ['torrent'] },
@@ -156,6 +153,10 @@ export async function browse(askUploadOptions: boolean) {
 
     if (result.canceled) {
         return []
+    }
+
+    if (result.filePaths.length > 0) {
+        lastBrowseDirectory = path.dirname(result.filePaths[0])
     }
 
     return readFiles(result.filePaths, askUploadOptions)

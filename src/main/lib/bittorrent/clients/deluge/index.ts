@@ -1,5 +1,4 @@
 import request from "@cypress/request"
-import parseTorrent from "parse-torrent"
 
 import type { BittorrentFilePriority, BittorrentFileSelection, BittorrentServerConfig, BittorrentTorrentDetailsData, BittorrentTorrentDetailsFile, BittorrentTorrentDetailsTracker, BittorrentTorrentPeer, TorrentClientConnection } from "@shared/ipc-contract"
 import {
@@ -218,7 +217,7 @@ export class DelugeRuntime implements BittorrentRuntime {
         })
     }
 
-    private addUploadedTorrent(path: string, config: Record<string, any> | undefined, cb: (err: any, value?: any) => void) {
+    private async addUploadedTorrent(path: string, config: Record<string, any>): Promise<string> {
         const options: Record<string, any> = {
             file_priorities: [],
             add_paused: false,
@@ -232,7 +231,13 @@ export class DelugeRuntime implements BittorrentRuntime {
         }
         delete options.label
 
-        this.rpc("web.add_torrents", [[{ path, options }]], cb)
+        const result = await defer<unknown>((done) => this.rpc("web.add_torrents", [[{ path, options }]], done))
+        const added = Array.isArray(result) && result.length === 1 ? result[0] : null
+        if (Array.isArray(added) && added[0] === true && typeof added[1] === "string" && added[1].trim()) {
+            return added[1]
+        }
+        const reason = Array.isArray(added) && added[0] === false && typeof added[1] === "string" && added[1].trim()
+        throw new Error(reason || "Deluge did not confirm the add. The torrent may already exist or its metadata may be invalid.")
     }
 
     private async applyUploadedTorrentLabel(hash: string | undefined, label?: string) {
@@ -558,16 +563,14 @@ export class DelugeRuntime implements BittorrentRuntime {
 
         if (this.isMagnetUrl(uri)) {
             const magnetOptions = await this.resolveMagnetConfig(uploadOptions)
-            const hash = parseTorrent(uri).infoHash
-            await defer((done) => this.addUploadedTorrent(uri, magnetOptions, done))
+            const hash = await this.addUploadedTorrent(uri, magnetOptions)
             await this.applyUploadedTorrentLabel(hash, magnetOptions.label)
             return
         }
 
         const uploadPath = await defer<string>((done) => this.rpc("web.download_torrent_from_url", [uri, ""], done))
-        const torrentInfo = await defer<Record<string, any>>((done) => this.rpc("web.get_torrent_info", [uploadPath], done))
-        await defer((done) => this.addUploadedTorrent(uploadPath, uploadOptions, done))
-        await this.applyUploadedTorrentLabel(torrentInfo?.info_hash, uploadOptions.label)
+        const hash = await this.addUploadedTorrent(uploadPath, uploadOptions)
+        await this.applyUploadedTorrentLabel(hash, uploadOptions.label)
     }
 
     async uploadTorrent(buffer: Uint8Array, filename: string, options?: Record<string, any>): Promise<void> {
@@ -578,7 +581,7 @@ export class DelugeRuntime implements BittorrentRuntime {
         const hash = await defer<string>((done) => this.rpc("core.add_torrent_file", [
             filename || "upload.torrent", Buffer.from(buffer).toString("base64"), torrentOptions,
         ], done))
-        if (!hash) {
+        if (typeof hash !== "string" || !hash.trim()) {
             throw new Error("Deluge did not add the torrent. It may already exist or the torrent file may be invalid.")
         }
         await this.applyUploadedTorrentLabel(hash, label)

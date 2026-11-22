@@ -111,7 +111,7 @@ describe("torrent details", function () {
 
     const hashValue = infoTab.$("[data-field-id='hash'] .torrent-details-field-copy")
     await hashValue.click()
-    const clipboardText = await browser.electron.execute((electron) => electron.clipboard.readText())
+    const clipboardText = await browser.electron.execute(async (electron) => await electron.clipboard.readText())
     clipboardText.should.equal(torrentMetadata.infoHash)
 
     await torrent.closeDetailsPanel()
@@ -212,6 +212,79 @@ describe("torrent details", function () {
       await torrent.closeDetailsPanel()
     }
   })
+
+  for (const placement of ["bottom", "right"] as const) {
+    it(`fits resized ${placement} details in a smaller window and restores the preferred size`, async function () {
+      this.timeout(90_000)
+      if (await $("html").getAttribute("data-theme") !== "darkhand") return this.skip()
+      const puppeteer = await browser.getPuppeteer()
+      const page = (await puppeteer.pages()).find(page => page.url().startsWith("file:") && page.url().endsWith("/index.html"))
+      if (!page) throw new Error("Electron renderer page not found")
+      const side = placement === "right"
+      const panel = ".torrent-details-panel"
+      const grip = `${panel} .torrent-details-panel-resizer`
+      const toggle = `.dh-switches [aria-label='Details placement'] button:${side ? "first" : "last"}-child`
+      const wide = { width: 1600, height: 1000 }
+      const small = side ? { width: 1180, height: 900 } : { width: 1600, height: 640 }
+
+      async function drag(delta: number) {
+        const handle = await page!.waitForSelector(grip, { visible: true, timeout: 5000 })
+        if (!handle) throw new Error("Details resize grip not found")
+        try {
+          const point = await handle.clickablePoint()
+          await page!.mouse.move(point.x, point.y)
+          await page!.mouse.down()
+          try {
+            await page!.mouse.move(point.x + (side ? delta : 0), point.y + (side ? 0 : delta))
+          } finally {
+            await page!.mouse.up()
+          }
+        } finally {
+          await handle.dispose()
+        }
+      }
+
+      const dimension = () => page.$eval(panel, (element, horizontal) => {
+        const bounds = element.getBoundingClientRect()
+        return horizontal ? bounds.width : bounds.height
+      }, side)
+      const bottom = $(".dh-switches [aria-label='Details placement'] button:last-child")
+      await page.setViewport(wide)
+      await $(toggle).click()
+      await torrent.openDetailsPanel()
+      try {
+        await page.waitForFunction((selector, cursor) => {
+          const handle = document.querySelector(selector)
+          return handle && getComputedStyle(handle).cursor === cursor
+        }, { timeout: 6000 }, grip, side ? "ew-resize" : "ns-resize")
+        const original = await dimension()
+        // Recover a known test baseline even when a previous attempt saved the maximum.
+        if (original > (side ? 390 : 330)) await drag(side ? 240 : 200)
+        const baseline = await dimension()
+        await drag(side ? -360 : -260)
+        const expanded = await dimension()
+        expanded.should.be.above(baseline + 90, `grow the ${placement} details panel`)
+
+        await page.setViewport(small)
+        await page.waitForFunction((selector, horizontal, preferred) => {
+          const bounds = document.querySelector(selector)!.getBoundingClientRect()
+          const list = document.querySelector("#page-torrents .main-content")!.getBoundingClientRect()
+          if (!horizontal) return bounds.height <= innerHeight * .48 + 2 && bounds.height < preferred - 30
+          return bounds.width < preferred - 30 && list.width >= bounds.width && list.right <= bounds.left + 1
+        }, { timeout: 6000 }, panel, side, expanded)
+        await page.setViewport(wide)
+        await page.waitForFunction((selector, horizontal, preferred) => {
+          const bounds = document.querySelector(selector)!.getBoundingClientRect()
+          return Math.abs((horizontal ? bounds.width : bounds.height) - preferred) <= 2
+        }, { timeout: 6000 }, panel, side, expanded)
+        await drag(expanded - original)
+      } finally {
+        await page.setViewport(wide)
+        if (side) await bottom.click()
+        if (await $(panel).isDisplayed()) await torrent.closeDetailsPanel()
+      }
+    })
+  }
 
   it("shows expected torrent file information in the files tab", async function () {
     this.timeout(60 * 1000)
@@ -319,17 +392,20 @@ describe("torrent details", function () {
     await torrent.openDetailsTab("trackers")
 
     const trackersTable = panel.$("[data-role='torrent-details-trackers-table']")
-    const actionsHeader = trackersTable.$("thead th.torrent-details-tracker-actions")
+    const headerSelector = "[data-role='torrent-details-trackers-table'] thead th.torrent-details-tracker-actions"
+    const actionsHeader = $(headerSelector)
+    await trackersTable.waitForDisplayed({ timeout: 30_000 })
     await actionsHeader.scrollIntoView({ block: "center", inline: "center" })
     const handle = actionsHeader.$(".rz-handle")
     await handle.waitForDisplayed({ timeout: 10_000 })
+    await eventually(() => handle.getAttribute("role")).equals("separator")
 
-    const initialWidth = (await actionsHeader.getSize()).width
-    await dragVisibleElement("[data-role='torrent-details-trackers-table'] thead th.torrent-details-tracker-actions .rz-handle", -40)
-    await eventually(async () => (await actionsHeader.getSize()).width)
-      .satisfies(`change by at least 10 from ${initialWidth}`, (nextWidth) => Math.abs(nextWidth - initialWidth) >= 10)
+    const getActionWidth = async () => (await visibleBounds(headerSelector)).width
+    const initialWidth = await getActionWidth()
+    await dragVisibleElement(`${headerSelector} .rz-handle`, -40)
+    await eventually(getActionWidth).satisfies(`shrink by at least 10 from ${initialWidth}`, width => width <= initialWidth - 10)
 
-    const resizedWidth = (await actionsHeader.getSize()).width
+    const resizedWidth = await getActionWidth()
     await torrent.closeDetailsPanel()
 
     const reopenedPanel = await torrent.openDetailsPanel()
@@ -337,7 +413,7 @@ describe("torrent details", function () {
 
     const reopenedActionsHeader = reopenedPanel.$("[data-role='torrent-details-trackers-table'] thead th.torrent-details-tracker-actions")
     await reopenedActionsHeader.waitForDisplayed({ timeout: 30_000 })
-    await eventually(async () => (await reopenedActionsHeader.getSize()).width)
+    await eventually(getActionWidth)
       .satisfies("restore fitted actions width after layout", width => Math.abs(width - resizedWidth) <= 1)
 
     await torrent.closeDetailsPanel()

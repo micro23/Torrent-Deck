@@ -9,11 +9,14 @@
         </tr>
     </thead>
     <tbody ui-sortable="ctl.sortOptions" ng-model="ctl.server.columns">
-        <tr ng-repeat="col in ctl.server.columns">
+        <tr ng-repeat="col in ctl.server.columns track by col.attribute">
             <td style="min-width: 12em">
-                <div class="sort handle">
-                    <i class="ui grey sort icon"></i>
-                </div>
+                <button type="button" class="ui basic compact icon button sort handle"
+                    ng-attr-aria-label="Move {{col.name}} column with the up and down arrow keys"
+                    title="Drag or use the arrow keys to move this column"
+                    ng-keydown="ctl.moveColumn($event, $index)">
+                    <i class="sort icon" aria-hidden="true"></i>
+                </button>
             </td>
             <td style="min-width: 12em">
                 <div class="ui checkbox">

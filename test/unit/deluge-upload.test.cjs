@@ -87,11 +87,17 @@ test('Deluge reads first/last-piece status separately from the write option name
 
 test('Deluge URL uploads use the supported sparse allocation option', async () => {
   const { api, calls } = runtime(null, null, ({ method }) => ({ result:
-    method === 'web.download_torrent_from_url' ? '/tmp/upload.torrent' : method === 'web.get_torrent_info' ? { info_hash: 'hash' } : true }))
+    method === 'web.download_torrent_from_url' ? '/tmp/upload.torrent' : [[true, 'hash']] }))
   await api.addTorrentUrl('https://example.test/file.torrent')
   const options = calls.find(call => call.body.method === 'web.add_torrents').body.params[0][0].options
   assert.equal(options.pre_allocate_storage, false)
   assert.equal('compact_allocation' in options, false)
+})
+
+test('Deluge reports the actual per-torrent refusal for a URL add', async () => {
+  const { api } = runtime(null, null, ({ method }) => ({ result:
+    method === 'web.download_torrent_from_url' ? '/tmp/upload.torrent' : [[false, 'Permission denied']] }))
+  await assert.rejects(api.addTorrentUrl('https://example.test/file.torrent'), /Permission denied/)
 })
 
 test('Deluge reports the server add error', async () => {

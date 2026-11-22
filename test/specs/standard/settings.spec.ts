@@ -28,6 +28,11 @@ describe("settings", function () {
 
   it("keeps settings pages and save controls reachable after resizing", async function () {
     this.timeout(90_000)
+    const initial = await browser.electron.execute(electron => {
+      const window = electron.BrowserWindow.getAllWindows().find(window => window.webContents.getURL().endsWith("/index.html"))
+      if (!window) throw new Error("App window not found")
+      return window.getBounds()
+    })
     const resize = async (width: number, height: number) => {
       const size = await browser.electron.execute((electron, width, height) => {
         const window = electron.BrowserWindow.getAllWindows().find(window => window.webContents.getURL().endsWith("/index.html"))
@@ -55,7 +60,7 @@ describe("settings", function () {
       }
       await browser.saveScreenshot("/tmp/torrent-deck-settings-compact.png")
     } finally {
-      await resize(1600, 1000)
+      await resize(initial.width, initial.height)
     }
   })
 
@@ -200,16 +205,15 @@ describe("settings", function () {
     await this.app.torrentsPageIsVisible()
   })
 
-  it("save button returns to the torrents page", async function () {
+  it("save returns to the torrents page and preferences reopen", async function () {
     await this.app.settingsSave()
     await this.app.torrentsPageIsVisible()
+    await this.app.openSettings()
+    await this.app.settingsPageIsVisible()
   })
 
-  it("persists system startup preference", async function () {
-    if (process.platform === "linux") {
-      this.skip()
-    }
-
+  const startupTest = process.platform === "linux" ? it.skip : it
+  startupTest("persists system startup preference", async function () {
     await this.app.settingsGotoTab("general")
     const initialSystemStartup = await this.app.getGeneralDropdownValue("System Startup")
     const nextSystemStartup = initialSystemStartup === "Start" ? "Disabled" : "Start"

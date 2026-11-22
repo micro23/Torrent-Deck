@@ -40,6 +40,7 @@ export class TorrentsPageController {
         settingsService: any,
     ) {
         const LIMIT = 25;
+        const SIDEBAR_STATUSES = ["all", "active", "downloading", "finished", "seeding", "paused", "stopped", "error"];
         const SYNC_LATENCY_SAMPLE_SIZE = 5;
         const MIN_SLOW_LATENCY_MS = 1000;
         const MAX_SLOW_LATENCY_MS = 2000;
@@ -50,6 +51,8 @@ export class TorrentsPageController {
         let timeout: angular.IPromise<void> | undefined;
         let reconnect: angular.IPromise<void> | undefined;
         let pollingGeneration = 0;
+        let activeRefresh: angular.IPromise<void> | undefined;
+        let queuedFullRefresh: angular.IPromise<void> | undefined;
         let slowSyncTimer: angular.IPromise<void> | undefined;
         let slowConnectionTimer: angular.IPromise<void> | undefined;
         let deferredUploads: Array<{ item: PendingTorrentUploadItem; askUploadOptions: boolean }> = [];
@@ -63,6 +66,7 @@ export class TorrentsPageController {
         $scope.connectionLost = false;
         $scope.torrents = {};
         $scope.arrayTorrents = [];
+        $scope.statusCounts = {};
         $scope.totalDownloadSpeed = 0;
         $scope.totalUploadSpeed = 0;
         $scope.totalDownloaded = 0;
@@ -201,7 +205,7 @@ export class TorrentsPageController {
 
         const fuse = new Fuse($scope.arrayTorrents, fuseOptions);
 
-        $rootScope.$on("show:draganddrop", (event: unknown, show: boolean) => {
+        const stopListeningForDrop = $rootScope.$on("show:draganddrop", (event: unknown, show: boolean) => {
             $scope.showDragAndDrop = show;
             $scope.$applyAsync();
         });
@@ -419,6 +423,7 @@ export class TorrentsPageController {
 
         $scope.$on("$destroy", () => {
             stopTimer();
+            stopListeningForDrop();
             saveDeckHistory();
             void window.electorrent.bittorrent.setSelectedTorrents([]);
         });
@@ -594,7 +599,7 @@ export class TorrentsPageController {
                 selected.push(torrent);
             }
             syncDetailsPanel();
-            $scope.$apply();
+            $scope.$applyAsync();
         }
 
         function startTimer(fullupdate?: boolean) {
@@ -655,6 +660,7 @@ export class TorrentsPageController {
         function clearAll() {
             $scope.torrents = {};
             $scope.arrayTorrents = [];
+            $scope.statusCounts = {};
             setLabels([]);
             if ($rootScope.$server?.id) {
                 $rootScope.currentLabelsByServer = $rootScope.currentLabelsByServer || {};
@@ -675,6 +681,8 @@ export class TorrentsPageController {
 
         function stopTimer() {
             pollingGeneration++;
+            activeRefresh = undefined;
+            queuedFullRefresh = undefined;
             if (timeout) {
                 $timeout.cancel(timeout);
                 timeout = undefined;
@@ -804,11 +812,25 @@ export class TorrentsPageController {
         $scope.openTorrentDetails = (torrent: any) => {
             openTorrentDetails(torrent);
         };
+        $scope.openDetailsFromButton = (event: MouseEvent, torrent: any) => {
+            event.stopPropagation();
+            openTorrentDetails(torrent);
+        };
 
         $scope.noneSelected = () => {
             return selected.length === 0;
         };
         $scope.selectedCount = () => selected.length;
+        $scope.allResultsSelected = () => selected.length > 0 && selected.length === $scope.arrayTorrents.length;
+        $scope.toggleResultSelection = (event: MouseEvent) => {
+            event.stopPropagation();
+            if ($scope.allResultsSelected()) {
+                deselectAll();
+                syncDetailsPanel();
+            } else {
+                selectAll();
+            }
+        };
 
         function toggleSelect(target: any) {
             const torrent = $scope.torrents[target.id];
@@ -962,10 +984,12 @@ export class TorrentsPageController {
         };
 
         function torrentSorter() {
-            const sort = $scope.filters.sort || "dateAdded";
             const desc = $scope.filters.order;
-
-            const column = $rootScope.$server?.columns.find((value: any) => value.attribute === sort);
+            const columns = $rootScope.$server?.columns;
+            const column = columns?.find((value: any) => value.attribute === $scope.filters.sort)
+                || columns?.find((value: any) => value.attribute === "dateAdded");
+            if (!column) return () => 0;
+            const sort = column.attribute;
             const sorter = column.sort;
 
             const alphabeticalCompare = (left?: string, right?: string) => {
@@ -1060,14 +1084,46 @@ export class TorrentsPageController {
             return torrents;
         }
 
+        function countTorrentsByStatus(allTorrents: any[]) {
+            const filterLabel = $scope.filters.label;
+            const filterTracker = $scope.filters.tracker;
+            const matchesTracker = filterTracker ? trackerFilter(filterTracker) : null;
+            const counts: Record<string, number> = {};
+            SIDEBAR_STATUSES.forEach((status) => {
+                counts[status] = 0;
+            });
+
+            allTorrents.forEach((torrent) => {
+                if (!matchesLabelFilter(torrent.label, filterLabel) || (matchesTracker && !matchesTracker(torrent))) {
+                    return;
+                }
+                SIDEBAR_STATUSES.forEach((status) => {
+                    if (statusFilter(torrent, status)) {
+                        counts[status] += 1;
+                    }
+                });
+            });
+
+            return counts;
+        }
+
         function refreshTorrents() {
             const allTorrents = fetchTorrents();
+            $scope.statusCounts = countTorrentsByStatus(allTorrents);
             let torrents = allTorrents;
             torrents = torrents.filter(torrentFilter());
             torrents = fuzzySearch(torrents);
             torrents = torrents.sort(torrentSorter());
             $scope.isSearching = false;
             $scope.arrayTorrents = torrents;
+            if (selected.length > 0) {
+                const visibleIds = new Set(torrents.map(torrent => torrent.id));
+                selected = selected.filter(torrent => {
+                    if (visibleIds.has(torrent.id)) return true;
+                    torrent.selected = false;
+                    return false;
+                });
+            }
             $scope.totalDownloadSpeed = allTorrents.reduce((acc: number, { downloadSpeed }: { downloadSpeed: number }) => acc + downloadSpeed, 0);
             $scope.totalUploadSpeed = allTorrents.reduce((acc: number, { uploadSpeed }: { uploadSpeed: number }) => acc + uploadSpeed, 0);
             $scope.totalDownloaded = allTorrents.reduce((acc: number, { downloaded }: { downloaded: number }) => acc + downloaded, 0);
@@ -1120,6 +1176,28 @@ export class TorrentsPageController {
         let initialSnapshotRendered = false;
 
         $scope.update = (fullupdate?: boolean) => {
+            if (activeRefresh) {
+                if (!fullupdate) return queuedFullRefresh || activeRefresh;
+                if (!queuedFullRefresh) {
+                    const generation = pollingGeneration;
+                    const serverId = $rootScope.$server?.id;
+                    const refreshAfterPending = () => {
+                        if (generation !== pollingGeneration || serverId !== $rootScope.$server?.id) return;
+                        queuedFullRefresh = undefined;
+                        return $scope.update(true);
+                    };
+                    queuedFullRefresh = activeRefresh.then(refreshAfterPending, refreshAfterPending);
+                }
+                return queuedFullRefresh;
+            }
+            const refresh = fetchSnapshot(!!fullupdate).finally(() => {
+                if (activeRefresh === refresh) activeRefresh = undefined;
+            });
+            activeRefresh = refresh;
+            return refresh;
+        };
+
+        function fetchSnapshot(fullupdate: boolean): angular.IPromise<void> {
             const generation = pollingGeneration;
             const serverId = $rootScope.$server?.id;
             const request = $rootScope.$btclient?.torrents(!!fullupdate);
@@ -1143,9 +1221,12 @@ export class TorrentsPageController {
                 cancelSlowSyncRequestTimer();
                 trackSyncRequestLatency(startedAt, serverId);
                 $scope.sessionStats = torrents.sessionStats || {};
-                newTorrents(torrents);
-                deleteTorrents(torrents);
-                changeTorrents(torrents);
+                if (torrents.dirty || torrents.all?.length || torrents.deleted?.length || torrents.changed?.length) {
+                    newTorrents(torrents);
+                    deleteTorrents(torrents);
+                    changeTorrents(torrents);
+                    refreshTorrents();
+                }
                 updateLabels(torrents);
                 updateTrackers(torrents);
                 if ($rootScope.$btclient?.features?.freeDiskSpace && Object.prototype.hasOwnProperty.call(torrents, "freeDiskSpace")) {
@@ -1171,7 +1252,7 @@ export class TorrentsPageController {
                 $scope.renderDone();
                 return $q.reject(err);
             });
-        };
+        }
 
         function checkNotification(oldTorrent: any, updatedTorrent: any) {
             if (!oldTorrent || !updatedTorrent) {
@@ -1195,7 +1276,6 @@ export class TorrentsPageController {
                 }
                 $scope.torrents = torrentMap;
                 reassignSelected();
-                refreshTorrents();
             }
         }
 
@@ -1205,7 +1285,6 @@ export class TorrentsPageController {
                 for (let index = 0; index < torrents.deleted.length; index += 1) {
                     delete $scope.torrents[torrents.deleted[index]];
                 }
-                refreshTorrents();
             }
         }
 
@@ -1222,7 +1301,6 @@ export class TorrentsPageController {
                         $scope.torrents[torrent.id] = torrent;
                     }
                 }
-                refreshTorrents();
             }
         }
 

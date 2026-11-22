@@ -5,6 +5,32 @@ const fs = require('node:fs')
 const vm = require('node:vm')
 const ts = require('typescript')
 
+test('repeated save notices stay in one place and expire after the latest save', () => {
+  const timers = new Set()
+  const timeout = fn => { timers.add(fn); return fn }
+  timeout.cancel = fn => timers.delete(fn)
+  const scope = { $on() {} }
+  let notify
+  const root = { $on(_name, callback) { notify = callback; return () => {} } }
+  const source = ts.transpileModule(fs.readFileSync('src/renderer/app/directives/notifications-center/notifications-center.controller.ts', 'utf8'), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
+  }).outputText
+  const exports = {}
+  const bridge = { updates: { onStatus() {} }, certificates: { onChallenge() {} } }
+  vm.runInNewContext(source, { exports, window: { electorrent: bridge } })
+  new exports.NotificationsCenterController(scope, root, timeout, {}, {}, {})
+  const saved = { type: 'positive', title: 'Saved Settings', message: 'Your settings have been updated' }
+  notify(null, saved)
+  const firstTimer = scope.notifications[0].timer
+  notify(null, { ...saved })
+  assert.equal(scope.notifications.length, 1)
+  assert.equal(timers.has(firstTimer), false)
+  assert.equal(timers.size, 1)
+  notify(null, { type: 'negative', title: 'Save failed', message: 'Disk full' })
+  scope.notifications[0].timer()
+  assert.deepEqual(Array.from(scope.notifications, item => item.title), ['Save failed'])
+})
+
 async function flush() {
   await new Promise(resolve => setImmediate(resolve))
 }

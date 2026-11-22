@@ -7,23 +7,67 @@ const ts = require('typescript')
 const os = require('node:os')
 const path = require('node:path')
 
-test('a .torrent file still reaches the upload queue when its optional preview cannot be parsed', async () => {
-  const bytes = Buffer.from('torrent data supported by the remote client')
+function loadTorrents(overrides = {}, afterDelay = () => {}) {
   const modules = {
-    electron: {}, '@shared/ipc': {}, './electorrent': {}, './notify': {},
-    fs: { promises: { stat: async () => ({ isFile: () => true, size: bytes.length }), readFile: async () => bytes } },
+    electron: {}, '@shared/ipc': {}, './electorrent': {},
+    './torrent-source-file': require('../../src/main/lib/torrent-source-file.ts'),
     'parse-torrent': () => { throw Error('Unsupported metadata version') },
+    ...overrides,
   }
   const exports = {}
   const source = ts.transpileModule(fs.readFileSync('src/main/lib/torrents.ts', 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, esModuleInterop: true },
   }).outputText
-  vm.runInNewContext(source, { exports, Buffer, Uint8Array, setTimeout: callback => callback(), require: name => modules[name] || require(name) })
-  const torrent = await exports.serializeTorrentFile('/downloads/example.torrent', true)
+  const setTimeout = callback => { afterDelay(); callback() }
+  vm.runInNewContext(source, { exports, Buffer, Uint8Array, Error, setTimeout, require: name => modules[name] || require(name) })
+  return exports
+}
+
+test('a .torrent file still reaches the upload queue when its optional preview cannot be parsed', async t => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'torrent-deck-preview-'))
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }))
+  const file = path.join(directory, 'example.torrent')
+  const bytes = Buffer.from('torrent data supported by the remote client')
+  fs.writeFileSync(file, bytes)
+  const torrent = await loadTorrents().serializeTorrentFile(file, true)
   assert.equal(torrent.filename, 'example.torrent')
   assert.deepEqual(Buffer.from(torrent.data), bytes)
-  assert.equal(torrent.sourcePath, '/downloads/example.torrent')
+  assert.equal(torrent.sourcePath, file)
   assert.equal(torrent.metadata, undefined)
+})
+
+test('torrent metadata preserves padding slots and excludes them from the payload size', () => {
+  const parsed = {
+    length: 32,
+    info: { files: [{}, { attr: Buffer.from('p') }, {}] },
+    files: [
+      { name: 'first', path: 'first', length: 10 },
+      { name: 'pad', path: '.pad/pad', length: 16 },
+      { name: 'second', path: 'second', length: 6 },
+    ],
+  }
+  const result = loadTorrents({ 'parse-torrent': () => parsed }).parse({ data: new Uint8Array([1]) })
+  assert.equal(result.length, 16)
+  assert.equal(result.files[1].padding, true)
+  assert.equal(result.files[2].name, 'second')
+})
+
+test('file opening rejects non-files, empty files and continuously rewritten same-size files', async t => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'torrent-deck-write-'))
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }))
+  const file = path.join(directory, 'example.torrent')
+  const api = loadTorrents()
+  await assert.rejects(api.serializeTorrentFile(directory, false), /regular torrent file/)
+  fs.writeFileSync(file, '')
+  await assert.rejects(api.serializeTorrentFile(file, false), /empty/)
+  fs.writeFileSync(file, 'A')
+  let revision = 1
+  const writing = loadTorrents({}, () => {
+    fs.writeFileSync(file, String(revision++))
+    fs.utimesSync(file, revision, revision)
+  })
+  await assert.rejects(writing.serializeTorrentFile(file, false), /still changing/)
+  assert.equal(Buffer.from((await api.serializeTorrentFile(file, false)).data).toString(), String(revision - 1))
 })
 
 test('file selection and launch preserve native paths and report unreadable files without losing valid files', async () => {
@@ -39,13 +83,9 @@ test('file selection and launch preserve native paths and report unreadable file
     './electorrent': { getWindow: () => ({ webContents: { send: (_channel, data) => notifications.push(data) } }) },
     'parse-torrent': () => { throw Error('Preview unsupported') },
   }
-  const exports = {}
-  const source = ts.transpileModule(fs.readFileSync('src/main/lib/torrents.ts', 'utf8'), {
-    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, esModuleInterop: true },
-  }).outputText
-  vm.runInNewContext(source, { exports, Buffer, Uint8Array, Error, setTimeout: callback => callback(), require: name => modules[name] || require(name) })
+  const api = loadTorrents(modules)
   try {
-    for (const files of [await exports.browse(true), await exports.readFiles([missing, filename], true)]) {
+    for (const files of [await api.browse(true), await api.readFiles([missing, filename], true)]) {
       assert.equal(files.length, 1)
       assert.equal(files[0].sourcePath, filename)
       assert.equal(files[0].filename, path.basename(filename))

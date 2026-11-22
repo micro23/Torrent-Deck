@@ -28,6 +28,22 @@ describe("torrent column resizing", function () {
       let bounds = await target?.boundingBox()
       let grip = await handle?.boundingBox()
       if (!bounds || !grip) throw new Error("Column resize handle not visible")
+      const selectAll = await page.$("#torrentTable .torrent-select-results")
+      const selectionBox = await selectAll?.boundingBox()
+      if (!selectionBox) throw new Error("Filtered selection control not visible")
+      const xSelect = selectionBox.x + selectionBox.width / 2
+      const ySelect = selectionBox.y + selectionBox.height / 2
+      await page.mouse.click(xSelect, ySelect)
+      await page.waitForSelector("#torrentTable .torrent-select-results:checked", { timeout: 5000 })
+      await page.waitForSelector("#torrentTable tbody tr.active", { timeout: 5000 })
+      // The selection toolbar may change the layout after the first click.
+      // Exercise the checkbox's keyboard path from its current position.
+      await selectAll!.focus()
+      await page.keyboard.press("Space")
+      await page.waitForSelector("#torrentTable tbody tr.active", { hidden: true, timeout: 5000 })
+      bounds = await target!.boundingBox()
+      grip = await handle!.boundingBox()
+      if (!bounds || !grip) throw new Error("Column resize handle not visible after clearing selection")
       const initialWidth = bounds.width
       await page.mouse.click(grip.x + grip.width / 2, grip.y + grip.height / 2, { clickCount: 2 })
       bounds = await target!.boundingBox()

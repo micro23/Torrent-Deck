@@ -100,7 +100,7 @@ export class AddTorrentModalController {
 
     hasFilesTab() {
         return !!this.rootScope.$btclient?.features.uploadFileSelection
-            && !!this.getCurrentTorrentUploadFiles()?.length
+            && !!this.getCurrentTorrentUploadFiles()?.some(file => !file.padding)
     }
 
     switchTab(tab: "general" | "files") {
@@ -138,6 +138,9 @@ export class AddTorrentModalController {
             this.isLoading = true
             this.uploadError = ""
             const torrent = this.getCurrentTorrentUpload()
+            if (this.uploadOptions.fileSelection?.length && !this.uploadOptions.fileSelection.some(file => file.wanted)) {
+                throw new Error("Select at least one file to download.")
+            }
             if (torrent.type === 'file') {
                 await this.performTorrentUpload(torrent.data, torrent.filename, this.uploadOptions, torrent.sourcePath)
             } else {

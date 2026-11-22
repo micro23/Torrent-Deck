@@ -1,5 +1,19 @@
 # Changes since the Electorrent fork
 
+## 2.19.25 — desktop layout, file handling and upstream updates
+
+- Sync Deluge Deck 1.0.104’s Paper, Ocean, and Sunset redesigns with refreshed artwork, sidebar and detail styling, and gallery previews.
+- Select filtered torrents from the table header, open Details from a torrent’s name with the keyboard, and reorder columns with the arrow keys in Layout. Press Enter in the command palette to run the first match.
+- Preserve the original torrent file indexes during upload review, exclude padding from the file picker and payload size, and report Deluge’s per-torrent result for magnet and URL adds.
+
+- A resized details pane leaves room for the torrent list when the window shrinks and returns to its preferred size when space permits.
+- Restore the app to a visible display after disconnecting a monitor. Native Wayland sessions let the compositor place the window.
+- Read stable torrent files before upload. Automatic cleanup rechecks the original file after the server accepts the upload.
+- Coordinate background and manual refreshes so an older snapshot cannot undo an upload on screen. Compute sidebar counts when the list or filters change.
+- Repeated notices share one timer and one message. Success banners leave the Settings controls under them clickable.
+- Settings panels and cards use each theme's panel corners. The Valentine’s theme keeps its rounded buttons without clipping navigation or the Save button.
+- Incorporate Electorrent 2.17.3, including its Transmission performance improvements, qBittorrent priority and ratio fixes, and Electron 45.4.1 update.
+
 ## 2.19.24 — responsive columns and steadier refreshes
 
 - Keep enabled columns within the pane. Drag a divider or use the arrow keys to resize, including with the details pane open. Wrapped filenames stay left aligned.

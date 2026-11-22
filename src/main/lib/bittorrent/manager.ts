@@ -17,6 +17,7 @@ import type {
 } from "@shared/ipc-contract"
 import logger from "../logger"
 import * as settings from "../settings"
+import { readFileVersion, sameFileVersion } from "../torrent-source-file"
 import { createRuntime } from "./registry"
 import type { BittorrentRuntime } from "./types"
 import { withTorrentActionAccelerators, type TorrentActionItem } from "@shared/torrent-actions"
@@ -74,7 +75,7 @@ class BittorrentManager {
     }
 
     private canAutoRemoveUploadedTorrent(request: BittorrentUploadTorrentRequest) {
-        if (!request.sourcePath) {
+        if (typeof request.sourcePath !== "string" || !request.sourcePath) {
             return false
         }
 
@@ -172,14 +173,22 @@ class BittorrentManager {
 
     async uploadTorrent(sender: WebContents, request: BittorrentUploadTorrentRequest) {
         const session = await this.getSession(sender)
+        const source = settings.getAllSettings().autoRemoveTorrents === true && this.canAutoRemoveUploadedTorrent(request)
+            ? await fs.promises.lstat(request.sourcePath).catch(() => undefined)
+            : undefined
         await session.uploadTorrent(request.data, request.filename, request.options)
 
-        if (settings.getAllSettings().autoRemoveTorrents !== true || !this.canAutoRemoveUploadedTorrent(request)) {
+        if (!source?.isFile() || source.size !== request.data.byteLength || settings.getAllSettings().autoRemoveTorrents !== true) {
             return
         }
 
         try {
-            await fs.promises.unlink(request.sourcePath)
+            // A queued upload may refer to older bytes, and a download can
+            // replace its source path while the server is accepting it.
+            const current = await readFileVersion(request.sourcePath, source)
+            if (current?.equals(request.data) && sameFileVersion(source, await fs.promises.lstat(request.sourcePath))) {
+                await fs.promises.unlink(request.sourcePath)
+            }
         } catch (error) {
             if ((error as NodeJS.ErrnoException).code === "ENOENT") {
                 return

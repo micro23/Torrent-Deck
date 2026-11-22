@@ -21,7 +21,7 @@
     <torrent-sidebar
         settings="settings"
         features="$btclient.features"
-        torrents="torrents"
+        counts="statusCounts"
         filters="filters"
         labels="labels"
         trackers="trackers"
@@ -34,7 +34,32 @@
     <div class="main-panel" ng-style="{'--deck-content-scale': (settings.ui.contentScale || 80) / 100}">
         <section class="deck-overview" aria-label="Torrent overview">
             <forest-artwork ng-if="$root.deckTheme === 'forest'" kind="masthead"></forest-artwork>
-            <header class="core-masthead" ng-if="$root.deckCore && $root.deckTheme !== 'forest'"><div class="core-masthead-title"><svg class="core-mark" viewBox="0 0 44 44" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><g ng-if="$root.deckTheme === 'dark'"><path d="M28 5A17 17 0 1 0 36 31 16 16 0 0 1 28 5Z" /><path d="M35 7v8m-4-4h8M17 5v4m-2-2h4" /></g><g ng-if="$root.deckTheme === 'light'"><path d="M8 7h19l8 8v23H8Zm19 0v8h8M14 22h15m-15 6h15m-15 6h9" /><path d="M4 12v30h26" /></g><g ng-if="$root.deckTheme === 'ocean'"><path d="M3 21c7-12 15-12 22 0 7 12 14 12 17 6M3 29c7-12 15-12 22 0 7 12 14 12 17 6M10 13c6-6 12-6 18 0" /></g><g ng-if="$root.deckTheme === 'forest'"><path d="M9 35C-1 14 18 5 36 6c3 20-7 33-27 29ZM9 35 30 12M16 27l-1-11m8 3 11 1M9 35l-5 7" /></g><g ng-if="$root.deckTheme === 'sunset'"><path d="M9 23a13 13 0 0 1 26 0M3 23h38M7 29h30M11 35h22M16 41h12M22 2v4M5 8l4 4m26 0 4-4" /></g></svg><h1>{{$root.deckCore}}</h1></div><svg class="core-artwork" viewBox="0 0 440 160" fill="none" stroke="currentColor" stroke-width=".8" aria-hidden="true"><g ng-if="$root.deckTheme === 'dark'"><g class="core-orbit"><circle cx="260" cy="82" r="60" stroke-dasharray="1 12" /><ellipse cx="260" cy="82" rx="93" ry="28" transform="rotate(-25 260 82)" /><circle cx="340" cy="48" r="4" fill="currentColor" /></g><circle cx="260" cy="82" r="44" /><path d="M260 10v144M188 82h144M102 45l36 32 37-11m-37 11-12 43" /><circle cx="102" cy="45" r="3" /><circle cx="138" cy="77" r="3" /><circle cx="175" cy="66" r="3" /><path d="M337 18h50m-25-5v10M346 137h46" /></g><g ng-if="$root.deckTheme === 'light'"><path d="M105 128V43h215v85M123 128V62h180v66M142 128V80h142v48M105 43l107-30 108 30M85 128h257M212 13v115M123 62h180M142 80h142" /><circle cx="212" cy="62" r="45" stroke-dasharray="2 7" /><path d="M362 32v85m-10-74h20m-20 15h12m-12 15h20m-20 15h12m-12 15h20M65 30h18m-9-9v18" /></g><g ng-if="$root.deckTheme === 'ocean'"><g class="core-current"><path d="M5 100c45-65 85 65 130 0s85 65 130 0 85 65 130 0 85 65 130 0M5 120c45-65 85 65 130 0s85 65 130 0 85 65 130 0 85 65 130 0M5 140c45-65 85 65 130 0s85 65 130 0 85 65 130 0 85 65 130 0" /></g><circle cx="294" cy="56" r="43" /><circle cx="294" cy="56" r="30" stroke-dasharray="1 7" /><path d="M294 13v13m43 30h-13m-30 43V86m-43-30h13M294 56l22-22" /><circle cx="294" cy="56" r="3" fill="currentColor" /></g><g ng-if="$root.deckTheme === 'forest'"><g class="core-canopy"><path d="M120 152C158 106 236 66 335 16M173 110C121 105 105 64 115 38c40 5 71 27 58 72ZM223 78c-17-52 8-76 40-77 12 35 3 65-40 77ZM265 56c46 34 80 21 94-7-32-23-67-24-94 7ZM309 29c5-32 31-43 52-39" /><path d="m128 53 45 57m61-97-11 65m119-22-77 0" /></g><circle cx="94" cy="117" r="28" stroke-dasharray="1 8" /><path d="M77 117h34m-17-17v34" /></g><g ng-if="$root.deckTheme === 'sunset'"><circle class="core-sun" cx="278" cy="77" r="54" /><path d="M196 77h164M207 88h142M215 99h127M228 110h100M239 121h78M253 132h50M68 137l76-42 65 42 72-17 103 17M112 48h48m-24-24v48" /><path d="M248 22h60M230 33h96M222 44h112M216 55h123" /></g></svg></header>
+            <header ng-if="$root.deckTheme === 'light'" class="core-masthead paper-folio" aria-label="Paper theme">
+      <div class="paper-folio-title" aria-hidden="true">Paper</div>
+      <div class="paper-folio-plate" aria-hidden="true"></div>
+    </header>
+            <header ng-if="$root.deckTheme === 'ocean'" class="core-masthead ocean-masthead" aria-labelledby="ocean-masthead-title">
+      <svg class="ocean-contours" viewBox="0 0 440 180" fill="none" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <g stroke="currentColor" stroke-width=".85">
+        <path d="M-25 41C35 23 62 55 94 37s43-45 85-38 48 38 86 29 54-55 106-32" />
+        <path d="M-25 52C35 34 63 68 101 46s44-43 80-36 49 38 91 27 56-52 102-30" />
+        <path d="M-25 63C35 44 63 82 108 55s45-42 76-32 51 36 95 25 54-46 99-27" />
+        <path d="M-25 76C34 54 64 95 116 64s45-40 71-29 53 34 99 23 53-41 96-23" />
+        <path d="M-25 91C31 66 65 107 123 74s45-39 68-26 57 32 102 22 53-36 92-20" />
+        <path d="M-25 106C29 79 65 120 129 87s44-38 67-24 61 28 105 18 52-29 89-16" />
+        <path d="M-25 123C28 95 67 133 136 101s45-37 67-21 62 23 107 15 52-23 86-10" />
+        <path d="M-25 142C25 112 68 147 142 117s47-36 68-19 63 21 110 13 51-18 84-6" />
+      </g>
+    </svg>
+      <h1 id="ocean-masthead-title">Ocean</h1>
+      <span class="ocean-frame" aria-hidden="true"></span>
+    </header>
+            <header ng-if="$root.deckTheme === 'sunset'" class="core-masthead sunset-masthead" aria-label="Sunset theme artwork">
+      <div class="sunset-poster-title">
+        <span>Sunset</span>
+      </div>
+    </header>
+            <header class="core-masthead" ng-if="$root.deckTheme === 'dark'"><div class="core-masthead-title"><svg class="core-mark" viewBox="0 0 44 44" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><g ng-if="$root.deckTheme === 'dark'"><path d="M28 5A17 17 0 1 0 36 31 16 16 0 0 1 28 5Z" /><path d="M35 7v8m-4-4h8M17 5v4m-2-2h4" /></g><g ng-if="$root.deckTheme === 'light'"><path d="M8 7h19l8 8v23H8Zm19 0v8h8M14 22h15m-15 6h15m-15 6h9" /><path d="M4 12v30h26" /></g><g ng-if="$root.deckTheme === 'ocean'"><path d="M3 21c7-12 15-12 22 0 7 12 14 12 17 6M3 29c7-12 15-12 22 0 7 12 14 12 17 6M10 13c6-6 12-6 18 0" /></g><g ng-if="$root.deckTheme === 'forest'"><path d="M9 35C-1 14 18 5 36 6c3 20-7 33-27 29ZM9 35 30 12M16 27l-1-11m8 3 11 1M9 35l-5 7" /></g><g ng-if="$root.deckTheme === 'sunset'"><path d="M9 23a13 13 0 0 1 26 0M3 23h38M7 29h30M11 35h22M16 41h12M22 2v4M5 8l4 4m26 0 4-4" /></g></svg><h1>{{$root.deckCore}}</h1></div><svg class="core-artwork" viewBox="0 0 440 160" fill="none" stroke="currentColor" stroke-width=".8" aria-hidden="true"><g ng-if="$root.deckTheme === 'dark'"><g class="core-orbit"><circle cx="260" cy="82" r="60" stroke-dasharray="1 12" /><ellipse cx="260" cy="82" rx="93" ry="28" transform="rotate(-25 260 82)" /><circle cx="340" cy="48" r="4" fill="currentColor" /></g><circle cx="260" cy="82" r="44" /><path d="M260 10v144M188 82h144M102 45l36 32 37-11m-37 11-12 43" /><circle cx="102" cy="45" r="3" /><circle cx="138" cy="77" r="3" /><circle cx="175" cy="66" r="3" /><path d="M337 18h50m-25-5v10M346 137h46" /></g><g ng-if="$root.deckTheme === 'light'"><path d="M105 128V43h215v85M123 128V62h180v66M142 128V80h142v48M105 43l107-30 108 30M85 128h257M212 13v115M123 62h180M142 80h142" /><circle cx="212" cy="62" r="45" stroke-dasharray="2 7" /><path d="M362 32v85m-10-74h20m-20 15h12m-12 15h20m-20 15h12m-12 15h20M65 30h18m-9-9v18" /></g><g ng-if="$root.deckTheme === 'ocean'"><g class="core-current"><path d="M5 100c45-65 85 65 130 0s85 65 130 0 85 65 130 0 85 65 130 0M5 120c45-65 85 65 130 0s85 65 130 0 85 65 130 0 85 65 130 0M5 140c45-65 85 65 130 0s85 65 130 0 85 65 130 0 85 65 130 0" /></g><circle cx="294" cy="56" r="43" /><circle cx="294" cy="56" r="30" stroke-dasharray="1 7" /><path d="M294 13v13m43 30h-13m-30 43V86m-43-30h13M294 56l22-22" /><circle cx="294" cy="56" r="3" fill="currentColor" /></g><g ng-if="$root.deckTheme === 'forest'"><g class="core-canopy"><path d="M120 152C158 106 236 66 335 16M173 110C121 105 105 64 115 38c40 5 71 27 58 72ZM223 78c-17-52 8-76 40-77 12 35 3 65-40 77ZM265 56c46 34 80 21 94-7-32-23-67-24-94 7ZM309 29c5-32 31-43 52-39" /><path d="m128 53 45 57m61-97-11 65m119-22-77 0" /></g><circle cx="94" cy="117" r="28" stroke-dasharray="1 8" /><path d="M77 117h34m-17-17v34" /></g><g ng-if="$root.deckTheme === 'sunset'"><circle class="core-sun" cx="278" cy="77" r="54" /><path d="M196 77h164M207 88h142M215 99h127M228 110h100M239 121h78M253 132h50M68 137l76-42 65 42 72-17 103 17M112 48h48m-24-24v48" /><path d="M248 22h60M230 33h96M222 44h112M216 55h123" /></g></svg></header>
             <div class="sports-masthead sports-facts-masthead sports-lettering-{{$root.deckClub.lettering}}" ng-if="$root.deckClub &amp;&amp; $root.deckClub.id !== 'mets' &amp;&amp; $root.deckClub.id !== 'yankees'">
                 <div class="sports-masthead-title"><div class="sports-stadium-frame"><img class="sports-stadium-thumb" ng-src="deck-assets/sports/{{$root.deckClub.id}}-stadium-optimized.webp" alt="{{$root.deckClub.venue}}" width="96" height="54"></div><div class="sports-name-lockup"><span>{{$root.deckClub.city}} · EST. {{$root.deckClub.established}}</span><strong>{{$root.deckClub.short}}</strong></div></div><div class="sports-facts"><div class="sports-venue"><strong>{{$root.deckClub.venue}}</strong><span>OPENED {{$root.deckClub.opened}}<b class="sports-mobile-year"> · EST. {{$root.deckClub.established}}</b></span></div><div class="sports-title-banner"><strong>{{$root.deckClub.titles}}</strong><small>{{$root.deckClub.championshipLabel}}<br />{{$root.deckClub.titles === 1 ? 'CHAMPIONSHIP' : 'CHAMPIONSHIPS'}}</small></div></div>
                 <svg class="sports-motif" viewBox="0 0 120 120" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path ng-attr-d="{{$root.deckClub.motif}}"></path></svg>
@@ -232,6 +257,11 @@
                                 sort-header
                                 sort-key="col.attribute"
                             >
+                                <input ng-if="col.attribute === 'decodedName'"
+                                    class="torrent-select-results" type="checkbox" aria-label="Select all filtered torrents"
+                                    ng-disabled="arrayTorrents.length === 0" ng-checked="allResultsSelected()"
+                                    ng-prop-indeterminate="selectedCount() > 0 && !allResultsSelected()"
+                                    ng-click="toggleResultSelection($event)">
                                 {{::col.name}}
                             </th>
                         </tr>

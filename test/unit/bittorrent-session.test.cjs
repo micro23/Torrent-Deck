@@ -2,10 +2,12 @@
 const { test } = require('node:test')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
+const os = require('node:os')
+const path = require('node:path')
 const vm = require('node:vm')
 const ts = require('typescript')
 
-function loadManager(runtimes) {
+function loadManager(runtimes, settings = {}) {
   const exports = {}
   const compiled = ts.transpileModule(fs.readFileSync('src/main/lib/bittorrent/manager.ts', 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, esModuleInterop: true },
@@ -13,7 +15,8 @@ function loadManager(runtimes) {
   const modules = {
     'geoip-country': {},
     '../logger': { warn() {} },
-    '../settings': {},
+    '../settings': { getAllSettings: () => settings },
+    '../torrent-source-file': require('../../src/main/lib/torrent-source-file.ts'),
     './registry': { createRuntime: () => runtimes.shift() },
     '@shared/torrent-actions': { withTorrentActionAccelerators: actions => actions },
   }
@@ -30,6 +33,44 @@ function deferred() {
 const sender = { id: 42 }
 const profile = id => ({ id, client: 'deluge' })
 const connection = { version: '2.2.0' }
+
+test('successful upload removes only the regular, unchanged file whose bytes were uploaded', async t => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'torrent-deck-cleanup-'))
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }))
+  const filename = 'added.TORRENT'
+  const file = path.join(directory, filename)
+  const data = Buffer.from('original')
+  const request = { data: new Uint8Array(data), filename, sourcePath: file }
+  let onUpload = () => {}
+  const settings = { autoRemoveTorrents: true }
+  const manager = loadManager([{ actions: [], connect: async () => connection, uploadTorrent: () => onUpload() }], settings)
+  await manager.connect(sender, profile('test'))
+
+  fs.writeFileSync(file, data)
+  await manager.uploadTorrent(sender, request)
+  assert.equal(fs.existsSync(file), false)
+
+  fs.writeFileSync(file, 'replaced')
+  await manager.uploadTorrent(sender, request)
+  assert.equal(fs.readFileSync(file, 'utf8'), 'replaced')
+
+  fs.writeFileSync(file, data)
+  onUpload = () => {
+    const replacement = path.join(directory, 'replacement')
+    fs.writeFileSync(replacement, data)
+    fs.renameSync(replacement, file)
+  }
+  await manager.uploadTorrent(sender, request)
+  assert.deepEqual(fs.readFileSync(file), data)
+
+  onUpload = () => { throw Error('Deluge refused this upload') }
+  await assert.rejects(manager.uploadTorrent(sender, request), /refused/)
+  assert.deepEqual(fs.readFileSync(file), data)
+
+  onUpload = () => { settings.autoRemoveTorrents = false }
+  await manager.uploadTorrent(sender, request)
+  assert.deepEqual(fs.readFileSync(file), data)
+})
 
 test('disconnect invalidates an in-flight connection without interrupting a newer profile', async () => {
   const login = deferred()

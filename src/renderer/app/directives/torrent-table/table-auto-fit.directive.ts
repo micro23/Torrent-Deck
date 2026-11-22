@@ -125,7 +125,9 @@ export class TableAutoFitDirective implements IDirective {
             }
             table.style.setProperty('width', '100%', 'important')
             table.style.setProperty('min-width', '0', 'important')
-            const fixed = columns.map(column => !!column.querySelector('input[type="checkbox"]'))
+            // Detail tables use a dedicated checkbox column. The library
+            // embeds its select-all control in the resizable name column.
+            const fixed = columns.map(column => !isLibrary && !!column.querySelector('input[type="checkbox"]'))
             const fixedWidth = Math.min(30, available / columns.length)
             const budget = available - fixed.filter(Boolean).length * fixedWidth
             const minimum = hints.flatMap(([_width, floor], index) => fixed[index] ? [] : [floor])

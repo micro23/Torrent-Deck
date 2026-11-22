@@ -505,36 +505,39 @@ export class App {
     )
   }
 
-  async openSettings() {
-    await this.waitForSettingsTransition()
-    const settingsPage = $("#page-settings")
-    if (await settingsPage.isDisplayed()) {
-      return
-    }
-
-    // Use the on-screen hit target. ChromeDriver's element click can miss a
-    // CSS-zoomed button on Linux, and the overlay can briefly cover the sidebar.
+  private async clickSettingsControl(...selectors: string[]) {
+    // CSS zoom and overlay animations can put a different element under the
+    // pointer. Check the rendered target before sending a real mouse click.
     const puppeteer = await browser.getPuppeteer()
     const page = (await puppeteer.pages()).find(page => page.url().endsWith("/index.html"))
     if (!page) throw new Error("Electron renderer page not found")
-    const point = await page.waitForFunction(() => {
-      for (const selector of [".terminal-preferences", 'button[data-role="show-settings"]']) {
+    const point = await page.waitForFunction((selectors: string[]) => {
+      for (const selector of selectors) {
         const button = document.querySelector(selector)
-        if (!button) continue
+        if (!button || button.matches(":disabled") || button.closest("[inert]")) continue
         const box = button.getBoundingClientRect()
         const x = box.x + box.width / 2
         const y = box.y + box.height / 2
         if (box.width && box.height && button.contains(document.elementFromPoint(x, y))) return { x, y }
       }
       return null
-    }, { timeout: this.timeout })
+    }, { timeout: this.timeout }, selectors)
     try {
       const { x, y } = await point.jsonValue()
       await page.mouse.click(x, y)
     } finally {
       await point.dispose()
     }
-    await this.settingsPageIsVisible()
+  }
+
+  async openSettings() {
+    await this.waitForSettingsTransition()
+    const settings = $("#page-settings")
+    await browser.waitUntil(async () => {
+      if (await settings.isDisplayed()) return true
+      await this.clickSettingsControl(".terminal-preferences", 'button[data-role="show-settings"]')
+      return await settings.isDisplayed()
+    }, { timeout: 12_000, interval: 300, timeoutMsg: "Preferences did not open from either visible control" })
     await this.waitForSettingsTransition()
   }
 
@@ -543,26 +546,28 @@ export class App {
     await settingsTab.waitForDisplayed()
     const className = (await settingsTab.getAttribute("class")) || ""
     if (!className.includes("active")) {
-      await settingsTab.waitForClickable()
-      await settingsTab.click()
+      await this.clickSettingsControl(`#page-settings [data-role="settings-tab-${tab}"]`)
+      await $(`#page-settings-${tab}`).waitForDisplayed()
     }
   }
 
+  async settingsChooseTheme(name: string) {
+    const selector = `#page-settings button[aria-label="Choose ${name} theme"]`
+    const choice = $(selector)
+    await choice.scrollIntoView({ block: "center", inline: "nearest" })
+    await this.clickSettingsControl(selector)
+    await expect(choice).toHaveElementClass("is-selected")
+  }
+
   async settingsSave() {
-    const saveBtn = $("#page-settings .actions.footer .positive")
-    await saveBtn.waitForDisplayed()
-    await saveBtn.waitForClickable()
-    await saveBtn.click()
+    await this.clickSettingsControl("#page-settings .actions.footer .positive")
     await this.settingsPageIsHidden()
     await this.waitForSettingsTransition()
     await $(".app-content > .overlay .ui.inverted.solid.dimmer").waitForDisplayed({ reverse: true })
   }
 
   async settingsCancel() {
-    const cancelBtn = $("#page-settings .actions.footer a.deny")
-    await cancelBtn.waitForDisplayed()
-    await cancelBtn.waitForClickable()
-    await cancelBtn.click()
+    await this.clickSettingsControl("#page-settings .actions.footer a.deny")
     await this.settingsPageIsHidden()
     await this.waitForSettingsTransition()
   }
